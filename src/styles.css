@@ -46,28 +46,30 @@ dialog{color:#2f4236;position:fixed;border:1px solid #d7dfd0;border-radius:15px;
 .pref-diagnoses { display: flex; flex-direction: column; gap: .3rem; }
 .diagnosis-pills { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .2rem; }
 .diagnosis-pill {
-  background: var(--surface-raised);
-  border: 1.5px solid var(--border);
+  background: #fff;
+  border: 1.5px solid var(--line);
   border-radius: 999px;
-  color: var(--text-secondary);
+  color: var(--muted);
   cursor: pointer;
   font-size: .75rem;
   font-weight: 500;
   letter-spacing: .02em;
-  padding: .25rem .75rem;
+  padding: .3rem .85rem;
   transition: background .15s, color .15s, border-color .15s;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
 }
-.diagnosis-pill:hover { border-color: var(--brand); color: var(--brand); }
+.diagnosis-pill:hover { border-color: var(--green); color: var(--green); background: var(--sage); }
 .diagnosis-pill.active {
-  background: var(--brand);
-  border-color: var(--brand);
+  background: var(--green);
+  border-color: var(--green);
   color: #fff;
+  box-shadow: 0 1px 4px rgba(53,93,73,.25);
 }
 
 /* ── Multi-diagnosis form fieldset ───────────────────────────────── */
 .diagnosis-fieldset {
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
   padding: .75rem 1rem;
   margin: 0;
 }
@@ -76,7 +78,7 @@ dialog{color:#2f4236;position:fixed;border:1px solid #d7dfd0;border-radius:15px;
   font-weight: 600;
   letter-spacing: .06em;
   padding: 0 .25rem;
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 .diagnosis-checks {
   display: grid;

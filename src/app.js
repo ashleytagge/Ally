@@ -11,7 +11,8 @@ let filters = initialFilters();
 let comparison = [];
 let resourceQuery = '';
 let resourceTopic = 'all';
-let aiState = { results: null, loading: false, error: null };
+const aiCache = {};
+function getAIState(cond) { const k = cond || focusedCondition(); return aiCache[k] || { results: null, loading: false, error: null }; }
 let agentProviderCache = {};
 let activeCondition = null;
 function focusedCondition() {
@@ -45,34 +46,29 @@ let toastTimeout;
 function toast(message) { const el = document.querySelector('#toast'); el.textContent = message; el.classList.add('visible'); clearTimeout(toastTimeout); toastTimeout = setTimeout(() => el.classList.remove('visible'), 4000); }
 function navigate(next) {
   view = next; filters = initialFilters(); render(); window.scrollTo(0, 0); document.querySelector('h1')?.focus();
-  if (session.profile && !aiState.results && !aiState.loading && (next === 'providers' || next === 'dashboard')) {
-    fetchAIResults();
-  }
+  // AI results are pre-fetched for all conditions on init
 }
-async function fetchAIResults() {
-  if (aiState.loading) return;
-  aiState.loading = true;
-  aiState.error = null;
-  const el = document.querySelector('#provider-results');
-  if (el) el.innerHTML = '<div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is finding care options for you…</p></div>';
+async function fetchAIForCondition(cond) {
+  if (!cond) return;
+  const existing = aiCache[cond];
+  if (existing && (existing.loading || existing.results)) return;
+  aiCache[cond] = { results: null, loading: true, error: null };
+  render();
   try {
-    aiState.results = await askAlly({ ...session.profile, condition: focusedCondition() });
-    aiState.error = null;
+    const results = await askAlly({ ...session.profile, condition: cond });
+    aiCache[cond] = { results, loading: false, error: null };
   } catch (err) {
-    aiState.error = err.message;
-    aiState.results = null;
+    aiCache[cond] = { results: null, loading: false, error: err.message };
     console.error('Agent 1:', err);
-  } finally {
-    aiState.loading = false;
-    render();
   }
+  render();
 }
 function switchCondition(cond) {
   activeCondition = cond;
-  aiState = { results: null, loading: false, error: null };
   agentProviderCache = {};
   render();
-  fetchAIResults();
+  // Fetch only if not already cached or in-flight
+  if (!aiCache[cond]?.results && !aiCache[cond]?.loading) fetchAIForCondition(cond);
 }
 function showDialog(content) { dialog.innerHTML = `<button class="icon-button dialog-close" data-action="close" aria-label="Close dialog">${icon('close')}</button>${content}`; dialog.showModal(); }
 function render() {
@@ -96,7 +92,7 @@ function pageHeading(eyebrow, title, sub, action = '') { return `<div class="pag
 function dashboard() {
   const p = session.profile;
   const matches = findProviders({ ...p, condition: focusedCondition() }, initialFilters());
-  return `<section class="advocate-card"><div>${(() => { const s = aiState; return `<div class="ally-label">${icon('leaf')} A NOTE FROM ALLY${s.results ? '' : s.loading ? ' <span>Loading…</span>' : ' <span>Scripted demo</span>'}</div><h2>${s.results ? 'Here’s what I found for you.' : 'Let’s make finding care<br>feel a little more manageable.'}</h2><p>${s.results ? escape(s.results.meta.summary) : 'I’ve organized sample care options around your preferences. You can explore, compare, and decide what feels right for you.'}</p>`; })()} <button class="primary" data-view="providers">Explore care options ${icon('arrow')}</button></div>${botanical()}</section><section class="preferences" aria-label="Your care preferences"><div class="pref-diagnoses"><span>My diagnoses</span><div class="diagnosis-pills">${(Array.isArray(p.conditions) ? p.conditions : [p.condition]).map(c => `<button class="diagnosis-pill${focusedCondition()===c?' active':''}" data-condition-switch="${escape(c)}">${escape(c)}</button>`).join('')}</div></div><div><span>Your insurance</span><strong>${escape(p.insurance)}</strong></div><div><span>Your area</span><strong>${locations[p.location].label}</strong></div><button class="text-button" data-action="profile">Edit preferences</button></section><div class="dashboard-columns"><section><div class="section-heading"><div><h2>A place to start</h2><p>Care options for ${escape(focusedCondition())}.</p></div><button class="text-button" data-view="providers">View all ${icon('arrow')}</button></div><div class="provider-list">${(aiState.results ? aiState.results.providers.slice(0, 2).map(p => agentProviderCard(p, true)) : matches.slice(0, 2).map(p => providerCard(p, true))).join('')}</div><div class="section-heading resources-heading"><div><h2>A little knowledge helps</h2><p>Reliable information, at your own pace.</p></div><button class="text-button" data-view="resources">All resources ${icon('arrow')}</button></div>${resourceCard(resources.find(r => r.condition === p.condition) || resources[0])}</section><aside><section class="next-steps"><span class="eyebrow">AT YOUR PACE</span><h2>Your next small steps</h2><p>There’s no rush to do it all.</p>${[['coverage', 'Check your coverage', 'Ask your insurer about your exact plan, referral needs, and costs.'], ['questions', 'Write down your questions', 'What would help you feel more prepared for a first visit?'], ['records', 'Gather the basics', 'Keep your referral, medication list, and prior records handy.']].map(([id, title, text]) => `<label class="task"><input type="checkbox" data-task="${id}" ${session.tasks.includes(id) ? 'checked' : ''}><span><strong>${title}</strong><small>${text}</small></span></label>`).join('')}<span class="small muted">${session.tasks.length} of 3 steps checked · just for you</span></section><section class="saved-note">${icon('bookmark')}<h3>Your shortlist, in one place.</h3><p>${session.saved.length ? `You’ve saved ${session.saved.length} sample provider${session.saved.length === 1 ? '' : 's'}. Pick up where you left off.` : 'Save a provider whenever you want to come back to them.'}</p><button class="text-button" data-view="saved">View saved providers ${icon('arrow')}</button></section>${appointments()}</aside></div>`;
+  return `<section class="advocate-card"><div>${(() => { const s = getAIState(); return `<div class="ally-label">${icon('leaf')} A NOTE FROM ALLY${s.results ? '' : s.loading ? ' <span>Loading…</span>' : ' <span>Scripted demo</span>'}</div><h2>${s.results ? 'Here’s what I found for you.' : 'Let’s make finding care<br>feel a little more manageable.'}</h2><p>${s.results ? escape(s.results.meta.summary) : 'I’ve organized sample care options around your preferences. You can explore, compare, and decide what feels right for you.'}</p>`; })()} <button class="primary" data-view="providers">Explore care options ${icon('arrow')}</button></div>${botanical()}</section><section class="preferences" aria-label="Your care preferences"><div class="pref-diagnoses"><span>My diagnoses</span><div class="diagnosis-pills">${(Array.isArray(p.conditions) ? p.conditions : [p.condition]).map(c => `<button class="diagnosis-pill${focusedCondition()===c?' active':''}" data-condition-switch="${escape(c)}">${escape(c)}</button>`).join('')}</div></div><div><span>Your insurance</span><strong>${escape(p.insurance)}</strong></div><div><span>Your area</span><strong>${locations[p.location].label}</strong></div><button class="text-button" data-action="profile">Edit preferences</button></section><div class="dashboard-columns"><section><div class="section-heading"><div><h2>A place to start</h2><p>Care options for ${escape(focusedCondition())}.</p></div><button class="text-button" data-view="providers">View all ${icon('arrow')}</button></div>${(() => { const s = getAIState(); return s.loading ? '<div class="provider-list"><div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is finding care options for you…</p></div></div>' : '<div class="provider-list">' + (s.results ? s.results.providers.slice(0, 2).map(p => agentProviderCard(p, true)) : matches.slice(0, 2).map(p => providerCard(p, true))).join('') + '</div>'; })()} <div class="section-heading resources-heading"><div><h2>A little knowledge helps</h2><p>Reliable information, at your own pace.</p></div><button class="text-button" data-view="resources">All resources ${icon('arrow')}</button></div>${resourceCard(resources.find(r => r.condition === p.condition) || resources[0])}</section><aside><section class="next-steps"><span class="eyebrow">AT YOUR PACE</span><h2>Your next small steps</h2><p>There’s no rush to do it all.</p>${[['coverage', 'Check your coverage', 'Ask your insurer about your exact plan, referral needs, and costs.'], ['questions', 'Write down your questions', 'What would help you feel more prepared for a first visit?'], ['records', 'Gather the basics', 'Keep your referral, medication list, and prior records handy.']].map(([id, title, text]) => `<label class="task"><input type="checkbox" data-task="${id}" ${session.tasks.includes(id) ? 'checked' : ''}><span><strong>${title}</strong><small>${text}</small></span></label>`).join('')}<span class="small muted">${session.tasks.length} of 3 steps checked · just for you</span></section><section class="saved-note">${icon('bookmark')}<h3>Your shortlist, in one place.</h3><p>${session.saved.length ? `You’ve saved ${session.saved.length} sample provider${session.saved.length === 1 ? '' : 's'}. Pick up where you left off.` : 'Save a provider whenever you want to come back to them.'}</p><button class="text-button" data-view="saved">View saved providers ${icon('arrow')}</button></section>${appointments()}</aside></div>`;
 }
 function providerCard(p, compact = false) {
   const saved = session.saved.includes(p.id);
@@ -111,11 +107,12 @@ function directory() {
   return `${pageHeading(saved ? 'YOUR SHORTLIST' : 'FIND YOUR NEXT STEP', saved ? 'Care worth coming back to.' : 'Find care, with a little clarity.', saved ? 'Your saved sample providers. Explore the details when you’re ready.' : `Care options for ${escape(focusedCondition())} in ${locations[session.profile.location].label}.`, `<button class="secondary" data-action="profile">Edit preferences</button>`)}${saved ? '<p class="small muted">Saved providers follow your diagnosis preference. Change it back to see providers saved for another diagnosis.</p>' : ''}${filterControls()}<div id="provider-results">${providerResults()}</div>`;
 }
 function providerResults() {
-  if (view !== 'saved' && aiState.loading) {
+  const aiS = getAIState();
+  if (view !== 'saved' && aiS.loading) {
     return '<div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is finding care options for you…</p></div>';
   }
-  if (view !== 'saved' && aiState.results) {
-    let list = aiState.results.providers;
+  if (view !== 'saved' && aiS.results) {
+    let list = aiS.results.providers;
     if (filters.query) list = list.filter(p => `${p.name} ${p.specialty || ''}`.toLowerCase().includes(filters.query.toLowerCase()));
     if (filters.inNetwork) list = list.filter(p => p.insurance?.status === 'in_network');
     if (filters.distance === 'near') list = [...list].sort((a, b) => (a.distanceMiles || 0) - (b.distanceMiles || 0));
@@ -253,7 +250,7 @@ document.addEventListener('input', event => {
   if (event.target.id === 'resource-search') { resourceQuery = event.target.value; document.querySelector('#resource-results').innerHTML = resourceResults(); }
 });
 document.addEventListener('submit', event => {
-  if (event.target.id === 'profile-form') { event.preventDefault(); const fd = new FormData(event.target); const profileData = Object.fromEntries(fd); profileData.conditions = fd.getAll('conditions'); delete profileData.condition; if (!profileData.conditions.length) { toast('Please select at least one diagnosis.'); return; } session.profile = profileData; activeCondition = null; aiState = { results: null, loading: false, error: null }; agentProviderCache = {}; comparison = []; persist(); dialog.close(); navigate('dashboard'); }
+  if (event.target.id === 'profile-form') { event.preventDefault(); const fd = new FormData(event.target); const profileData = Object.fromEntries(fd); profileData.conditions = fd.getAll('conditions'); delete profileData.condition; if (!profileData.conditions.length) { toast('Please select at least one diagnosis.'); return; } session.profile = profileData; activeCondition = null; for (const k in aiCache) delete aiCache[k]; agentProviderCache = {}; comparison = []; persist(); dialog.close(); navigate('dashboard'); }
   if (event.target.id === 'booking-form') {
     event.preventDefault(); const id = event.target.dataset.id; const values = Object.fromEntries(new FormData(event.target));
     if (!session.appointments.some(a => a.id === id && a.date === values.date && a.time === values.time)) session.appointments.push({ id, ...values });
@@ -262,4 +259,7 @@ document.addEventListener('submit', event => {
 });
 dialog.addEventListener('click', e => { if (e.target === dialog && (e.clientX < dialog.getBoundingClientRect().left || e.clientX > dialog.getBoundingClientRect().right || e.clientY < dialog.getBoundingClientRect().top || e.clientY > dialog.getBoundingClientRect().bottom)) dialog.close(); });
 render();
-if (session.profile) fetchAIResults();
+if (session.profile) {
+  const initConds = Array.isArray(session.profile.conditions) ? session.profile.conditions : [session.profile.condition].filter(Boolean);
+  initConds.forEach(c => fetchAIForCondition(c));
+}
