@@ -7,12 +7,13 @@ const app = document.querySelector('#app');
 const dialog = document.querySelector('#dialog');
 let session;
 try { session = readState(sessionStorage); } catch { session = readState({ getItem: () => null }); }
-let view = session.profile ? 'dashboard' : 'welcome';
+let view = 'welcome';
 let filters = initialFilters();
 let comparison = [];
 let resourceQuery = '';
 let resourceTopic = 'all';
 const aiCache = {};
+let askDoctorState = 'idle'; // 'idle' | 'loading' | 'done'
 function getAIState(cond) { const k = cond || focusedCondition(); return aiCache[k] || { results: null, loading: false, error: null }; }
 let agentProviderCache = {};
 const bookingCache = {};
@@ -125,7 +126,7 @@ function dashboard() {
 
   const askDoctorSection = `<section class="dash-ask-doctor" id="dash-ask">
     <div class="dash-ask-head"><span class="eyebrow">PERSONALIZED SUGGESTIONS</span><h2>Ask your doctor about</h2></div>
-    ${hasData ? `<div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is preparing suggestions based on your care…</p></div>` : `<p class="dash-ask-empty">Add your symptoms and treatments above and Ally will suggest questions and options to bring up at your next appointment — based on what's working and what isn't.</p>`}
+    ${!hasData ? `<p class="dash-ask-empty">Add your symptoms and treatments above and Ally will suggest questions and options to bring up at your next appointment — based on what's working and what isn't.</p>` : askDoctorState === 'loading' ? `<div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is preparing suggestions based on your care…</p></div>` : `<div class="dash-ask-trigger"><p class="dash-ask-ready">Your symptoms and treatments are ready. Ally can now suggest questions and topics to bring up at your next appointment.</p><button class="primary" data-action="run-ask-doctor">${icon('activity')} Generate suggestions</button></div>`}
   </section>`;
 
   return `${prefStrip}<div class="dash-grid">${providersCard}${symptomsCard}</div>${treatmentsCard}${askDoctorSection}`;
@@ -365,7 +366,7 @@ document.addEventListener('click', event => {
   if (target.dataset.cancel !== undefined) { session.appointments.splice(Number(target.dataset.cancel), 1); persist(); render(); toast('Demo appointment removed.'); }
   switch (target.dataset.action) {
     case 'close': dialog.close(); break;
-    case 'home': navigate(session.profile ? 'dashboard' : 'welcome'); break;
+    case 'home': navigate('welcome'); break;
     case 'demo': session.profile = { ...demoProfile }; persist(); navigate('dashboard'); break;
     case 'onboard': profileForm(); break;
     case 'profile': profileForm(true); break;
@@ -374,7 +375,8 @@ document.addEventListener('click', event => {
     case 'reset-filters': filters = initialFilters(); render(); break;
     case 'compare': showComparison(); break;
     case 'clear-compare': comparison = []; render(); break;
-    case 'clear-session': session = { profile: null, saved: [], appointments: [], tasks: [], myProviders: [], symptoms: [], treatments: [] }; comparison = []; persist(); dialog.close(); navigate('welcome'); break;
+    case 'clear-session': session = { profile: null, saved: [], appointments: [], tasks: [], myProviders: [], symptoms: [], treatments: [] }; comparison = []; askDoctorState = 'idle'; persist(); dialog.close(); navigate('welcome'); break;
+    case 'run-ask-doctor': askDoctorState = 'loading'; render(); break;
     case 'add-provider': showAddProviderDialog(); break;
     case 'add-symptom': showAddSymptomDialog(); break;
     case 'add-treatment': showAddTreatmentDialog(); break;

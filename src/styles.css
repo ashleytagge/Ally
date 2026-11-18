@@ -56,6 +56,10 @@ dialog{color:#2f4236;position:fixed;border:1px solid #d7dfd0;border-radius:15px;
 .dash-ask-head .eyebrow{color:#5a7250}
 .dash-ask-head h2{font-size:22px;margin-top:6px;color:#2e4435}
 .dash-ask-empty{font-size:12px;line-height:1.9;color:#6b7f63;max-width:540px}
+.dash-ask-trigger{display:flex;flex-direction:column;gap:16px}
+.dash-ask-ready{font-size:12px;line-height:1.8;color:#6b7f63;max-width:480px}
+.dash-ask-trigger .primary{align-self:flex-start;gap:7px}
+.dash-ask-trigger .primary svg{width:14px;height:14px}
 /* Phase 2 – dashboard editing */
 .dash-item-actions{display:flex;align-items:center;gap:4px}
 .dash-sym-right{display:flex;align-items:center;gap:6px}
