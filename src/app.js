@@ -38,6 +38,7 @@ const icons = {
   activity: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
   pill: '<path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/>',
   users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87m-4-12a4 4 0 0 1 0 7.75"/>',
+  edit: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
 };
 const icon = name => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.heart}</svg>`;
 const brand = `<span class="wordmark">ally<span>·</span></span>`;
@@ -106,17 +107,17 @@ function dashboard() {
   const providersCard = `<section class="dash-card" id="dash-providers">
     <div class="dash-card-head"><h2>My Providers</h2><button class="text-button" data-action="add-provider">${icon('plus')} Add provider</button></div>
     <div class="dash-insurance"><span class="eyebrow">INSURANCE</span><strong>${escape(p.insurance)}</strong></div>
-    ${myProvs.length ? myProvs.map(pv => `<div class="dash-provider-item"><div class="dash-provider-info"><strong>${escape(pv.name)}</strong><span>${escape(pv.specialty)}${pv.inNetwork ? ' · <span class="in-network">In network</span>' : ''}</span></div><span class="dash-prov-tag">${pv.isCurrent ? 'Current' : 'Past'}</span></div>`).join('') : `<div class="dash-empty">${icon('users')}<p>Add the doctors and specialists you're seeing or have seen.</p><button class="text-button" data-view="providers">Find care ${icon('arrow')}</button></div>`}
+    ${myProvs.length ? myProvs.map(pv => `<div class="dash-provider-item"><div class="dash-provider-info"><strong>${escape(pv.name)}</strong><span>${escape(pv.specialty)}${pv.inNetwork ? ' · <span class="in-network">In network</span>' : ''}</span></div><div class="dash-item-actions"><span class="dash-prov-tag">${pv.isCurrent ? 'Current' : 'Past'}</span><button class="icon-button" data-edit-provider="${escape(pv.id)}" aria-label="Edit ${escape(pv.name)}">${icon('edit')}</button><button class="icon-button" data-remove-provider="${escape(pv.id)}" aria-label="Remove ${escape(pv.name)}">${icon('close')}</button></div></div>`).join('') : `<div class="dash-empty">${icon('users')}<p>Add the doctors and specialists you're seeing or have seen.</p><button class="text-button" data-view="providers">Find care ${icon('arrow')}</button></div>`}
   </section>`;
 
   const symptomsCard = `<section class="dash-card" id="dash-symptoms">
     <div class="dash-card-head"><h2>My Symptoms</h2><button class="text-button" data-action="add-symptom">${icon('plus')} Add symptom</button></div>
-    ${syms.length ? syms.map(sym => `<div class="dash-symptom-item"><span>${escape(sym.name)}</span><div class="severity-dots">${[1,2,3].map(n => `<span class="severity-dot${sym.severity >= n ? ' filled' : ''}"></span>`).join('')}</div></div>`).join('') : `<div class="dash-empty">${icon('activity')}<p>Tracking your symptoms helps Ally suggest better questions for your next appointment.</p></div>`}
+    ${syms.length ? syms.map(sym => `<div class="dash-symptom-item"><span>${escape(sym.name)}</span><div class="dash-sym-right"><div class="severity-dots">${[1,2,3].map(n => `<span class="severity-dot${sym.severity >= n ? ' filled' : ''}"></span>`).join('')}</div><button class="icon-button" data-edit-symptom="${escape(sym.id)}" aria-label="Edit ${escape(sym.name)}">${icon('edit')}</button><button class="icon-button" data-remove-symptom="${escape(sym.id)}" aria-label="Remove ${escape(sym.name)}">${icon('close')}</button></div></div>`).join('') : `<div class="dash-empty">${icon('activity')}<p>Tracking your symptoms helps Ally suggest better questions for your next appointment.</p></div>`}
   </section>`;
 
   const treatmentsCard = `<section class="dash-card dash-card-wide" id="dash-treatments">
     <div class="dash-card-head"><h2>My Treatments</h2><button class="text-button" data-action="add-treatment">${icon('plus')} Add treatment</button></div>
-    ${treats.length ? `<div class="dash-treatments-grid">${treats.map(t => `<div class="dash-treatment-item"><div class="dash-treatment-top"><strong>${escape(t.name)}</strong><span class="treatment-type">${escape(t.type || 'Medication')}</span></div><div class="dash-treatment-status"><span class="status-badge status-${t.status || 'unknown'}">${t.status === 'working' ? 'Working' : t.status === 'partial' ? 'Partially' : t.status === 'not-working' ? 'Not working' : 'No update'}</span>${t.sideEffects ? `<span class="side-effects-flag">Side effects noted</span>` : ''}</div><button class="text-button aid-btn" data-action="find-aid" data-treatment="${escape(t.name)}">${icon('leaf')} Find coverage options</button></div>`).join('')}</div>` : `<div class="dash-empty">${icon('pill')}<p>Add medications, supplements, and other treatments you're currently following.</p></div>`}
+    ${treats.length ? `<div class="dash-treatments-grid">${treats.map(t => `<div class="dash-treatment-item"><div class="dash-treatment-top"><strong>${escape(t.name)}</strong><div class="dash-treat-actions"><button class="icon-button" data-edit-treatment="${escape(t.id)}" aria-label="Edit ${escape(t.name)}">${icon('edit')}</button><button class="icon-button" data-remove-treatment="${escape(t.id)}" aria-label="Remove ${escape(t.name)}">${icon('close')}</button></div></div><span class="treatment-type">${escape(t.type || 'Medication')}</span><div class="dash-treatment-status"><span class="status-badge status-${t.status || 'unknown'}">${t.status === 'working' ? 'Working' : t.status === 'partial' ? 'Partially' : t.status === 'not-working' ? 'Not working' : 'No update'}</span>${t.sideEffects ? `<span class="side-effects-flag">Side effects noted</span>` : ''}</div><button class="text-button aid-btn" data-action="find-aid" data-treatment="${escape(t.name)}">${icon('leaf')} Find coverage options</button></div>`).join('')}</div>` : `<div class="dash-empty">${icon('pill')}<p>Add medications, supplements, and other treatments you're currently following.</p></div>`}
   </section>`;
 
   const askDoctorSection = `<section class="dash-ask-doctor" id="dash-ask">
@@ -180,6 +181,68 @@ function appointments() {
   return session.appointments.length ? `<section class="appointment-panel"><span class="eyebrow">PRACTICE YOUR NEXT STEP</span><h3>Demo appointments</h3><p class="small muted">Not real bookings. Nothing was sent.</p>${session.appointments.map((a, i) => `<div class="appointment"><strong>Dr. ${providers.find(p => p.id === a.id).name}</strong><span>${escape(a.date)} · ${escape(a.time)}</span><button class="text-button" data-cancel="${i}">Remove demo appointment</button></div>`).join('')}</section>` : '';
 }
 function about() { showDialog(`<span class="eyebrow">ABOUT THIS PROTOTYPE</span><h2>Support, with clear boundaries.</h2><p>Ally is an initial healthcare navigation prototype for women with new autoimmune diagnoses, based on the Ally product pitch.</p><ul class="about-list"><li><strong>Fictional care directory.</strong> Names, plans, distances, phone numbers, and appointment openings are sample data. They are not verified.</li><li><strong>A scripted advocate.</strong> Ally uses simple matching rules. There is no live AI, diagnosis, or treatment advice.</li><li><strong>Session-only preferences.</strong> Your selections, saves, checklist, and demo appointments stay in this browser session. No analytics or account.</li><li><strong>Real educational links.</strong> Resources open NIH websites. Those sites have their own privacy policies.</li><li><strong>Research status.</strong> No prior user study was provided. Design choices are hypotheses from the product brief, not validated findings.</li></ul><button class="secondary" data-action="clear-session">Clear session & return to welcome</button>`); }
+
+// --- Phase 2 dashboard dialog functions ---
+function showAddProviderDialog(editId = null) {
+  const existing = editId ? (session.myProviders || []).find(p => p.id === editId) : null;
+  const chips = ['Endocrinologist','Primary Care','Rheumatologist','Integrative Medicine','Nutritionist / Dietitian','Cardiologist','Gynecologist','Neurologist'];
+  showDialog(`<span class="eyebrow">${existing ? 'EDIT' : 'ADD'} PROVIDER</span>
+    <h2>${existing ? 'Update provider' : 'Who\'s on your care team?'}</h2>
+    <div class="quick-chips">${chips.map(c => `<button class="chip" type="button" data-chip-target="provider-specialty" data-chip-value="${escape(c)}">${escape(c)}</button>`).join('')}</div>
+    <form id="add-provider-form" data-edit-id="${editId || ''}">
+      <label class="form-label">Provider name<input type="text" name="name" required placeholder="Dr. Name or Clinic" value="${existing ? escape(existing.name) : ''}" autocomplete="off"></label>
+      <label class="form-label">Specialty<input type="text" name="specialty" id="provider-specialty" placeholder="e.g. Endocrinologist" value="${existing ? escape(existing.specialty) : ''}" autocomplete="off"></label>
+      <fieldset class="radio-group"><legend>Status</legend>
+        <label class="radio-label"><input type="radio" name="isCurrent" value="true" ${!existing || existing.isCurrent ? 'checked' : ''}> Current provider</label>
+        <label class="radio-label"><input type="radio" name="isCurrent" value="false" ${existing && !existing.isCurrent ? 'checked' : ''}> Past provider</label>
+      </fieldset>
+      <label class="check-label"><input type="checkbox" name="inNetwork" ${existing && existing.inNetwork ? 'checked' : ''}> In my network</label>
+      ${editId ? `<button class="text-button remove-link" type="button" data-remove-provider="${editId}">Remove provider</button>` : ''}
+      <button class="primary full" type="submit">${existing ? 'Save changes' : 'Add to my care team'}</button>
+    </form>`);
+}
+function showAddSymptomDialog(editId = null) {
+  const existing = editId ? (session.symptoms || []).find(s => s.id === editId) : null;
+  const chips = ['Fatigue','Brain fog','Weight gain','Cold intolerance','Hair thinning','Dry skin','Joint pain','Muscle weakness','Depression / anxiety','Constipation','Memory issues','Palpitations'];
+  showDialog(`<span class="eyebrow">${existing ? 'EDIT' : 'ADD'} SYMPTOM</span>
+    <h2>${existing ? 'Update symptom' : 'What are you experiencing?'}</h2>
+    <div class="quick-chips">${chips.map(c => `<button class="chip" type="button" data-chip-target="symptom-name" data-chip-value="${escape(c)}">${escape(c)}</button>`).join('')}</div>
+    <form id="add-symptom-form" data-edit-id="${editId || ''}">
+      <label class="form-label">Symptom<input type="text" name="name" id="symptom-name" required placeholder="Describe the symptom" value="${existing ? escape(existing.name) : ''}" autocomplete="off"></label>
+      <fieldset class="severity-fieldset"><legend>How significant is this?</legend>
+        <div class="severity-options">
+          ${[{v:1,label:'Mild'},{v:2,label:'Moderate'},{v:3,label:'Significant'}].map(opt => `<label class="sev-opt${(!existing && opt.v===1)||(existing && existing.severity===opt.v)?' checked':''}"><input type="radio" name="severity" value="${opt.v}" ${(!existing && opt.v===1)||(existing && existing.severity===opt.v)?'checked':''}><span class="sev-dots">${[1,2,3].map(n=>`<span class="severity-dot${n<=opt.v?' filled':''}"></span>`).join('')}</span><span>${opt.label}</span></label>`).join('')}
+        </div>
+      </fieldset>
+      ${editId ? `<button class="text-button remove-link" type="button" data-remove-symptom="${editId}">Remove symptom</button>` : ''}
+      <button class="primary full" type="submit">${existing ? 'Save changes' : 'Add symptom'}</button>
+    </form>`);
+}
+function showAddTreatmentDialog(editId = null) {
+  const existing = editId ? (session.treatments || []).find(t => t.id === editId) : null;
+  const chips = ['Levothyroxine','Liothyronine (T3)','Selenium supplement','Vitamin D','Gluten-free diet','Low-carb diet','Stress management','Acupuncture'];
+  const types = ['Medication','Supplement','Lifestyle','Other'];
+  const statuses = [{v:'working',label:'Working well'},{v:'partial',label:'Somewhat'},{v:'not-working',label:'Not working'},{v:'unknown',label:'Too early to tell'}];
+  showDialog(`<span class="eyebrow">${existing ? 'EDIT' : 'ADD'} TREATMENT</span>
+    <h2>${existing ? 'Update treatment' : 'What are you currently trying?'}</h2>
+    <div class="quick-chips">${chips.map(c => `<button class="chip" type="button" data-chip-target="treatment-name" data-chip-value="${escape(c)}">${escape(c)}</button>`).join('')}</div>
+    <form id="add-treatment-form" data-edit-id="${editId || ''}">
+      <label class="form-label">Treatment name<input type="text" name="name" id="treatment-name" required placeholder="Medication, supplement, or lifestyle change" value="${existing ? escape(existing.name) : ''}" autocomplete="off"></label>
+      <label class="form-label">Type<select name="type">${types.map(t=>`<option value="${t}" ${existing && existing.type===t?'selected':''}>${t==='Lifestyle'?'Lifestyle change':t}</option>`).join('')}</select></label>
+      <fieldset class="radio-group status-group"><legend>Is this working for you?</legend>
+        ${statuses.map(o=>`<label class="radio-label"><input type="radio" name="status" value="${o.v}" ${(existing?existing.status===o.v:o.v==='unknown')?'checked':''}> ${o.label}</label>`).join('')}
+      </fieldset>
+      <label class="check-label"><input type="checkbox" name="sideEffects" ${existing && existing.sideEffects?'checked':''}> I\'m experiencing side effects</label>
+      ${editId ? `<button class="text-button remove-link" type="button" data-remove-treatment="${editId}">Remove treatment</button>` : ''}
+      <button class="primary full" type="submit">${existing ? 'Save changes' : 'Add treatment'}</button>
+    </form>`);
+}
+function showFindAidDialog(treatmentName) {
+  showDialog(`<span class="eyebrow">COVERAGE OPTIONS</span>
+    <h2>Financial aid for ${escape(treatmentName || 'this treatment')}</h2>
+    <div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is searching for coverage options and financial assistance programs…</p></div>
+    <p class="small muted" style="margin-top:16px">This feature is coming soon. Ally will help you find manufacturer discounts, patient assistance programs, and coverage options for your treatments.</p>`);
+}
 
 // --- Agent 1 provider rendering ---
 function agentProviderCard(p, compact = false) {
@@ -247,6 +310,13 @@ document.addEventListener('click', event => {
   if (target.dataset.agentProvider) showAgentProvider(target.dataset.agentProvider);
   if (target.dataset.conditionSwitch) { switchCondition(target.dataset.conditionSwitch); }
   if (target.dataset.book) showBooking(target.dataset.book);
+  if (target.dataset.chipTarget) { const inp = document.getElementById(target.dataset.chipTarget); if (inp) { inp.value = target.dataset.chipValue; inp.focus(); } }
+  if (target.dataset.editProvider) { showAddProviderDialog(target.dataset.editProvider); }
+  if (target.dataset.removeProvider) { session.myProviders = session.myProviders.filter(p => p.id !== target.dataset.removeProvider); persist(); if (dialog.open) dialog.close(); navigate('dashboard'); }
+  if (target.dataset.editSymptom) { showAddSymptomDialog(target.dataset.editSymptom); }
+  if (target.dataset.removeSymptom) { session.symptoms = session.symptoms.filter(s => s.id !== target.dataset.removeSymptom); persist(); if (dialog.open) dialog.close(); navigate('dashboard'); }
+  if (target.dataset.editTreatment) { showAddTreatmentDialog(target.dataset.editTreatment); }
+  if (target.dataset.removeTreatment) { session.treatments = session.treatments.filter(t => t.id !== target.dataset.removeTreatment); persist(); if (dialog.open) dialog.close(); navigate('dashboard'); }
   if (target.dataset.phone) {
     const p = providers.find(p => p.id === target.dataset.phone);
     showDialog(`<span class="sample-tag">SAMPLE PHONE ACTION</span><h2>A call, with a little preparation.</h2><p>Dr. ${p.name} is fictional. The number below is a reserved example number, not a care office.</p><p>For a real appointment, use your insurer’s directory to find an office number and verify your exact plan.</p><a class="primary" href="tel:${p.phone}">Open phone app · sample number ${p.phone}</a><p class="small muted">This demonstrates a phone link. It will not connect you to a real provider.</p>`);
@@ -264,6 +334,10 @@ document.addEventListener('click', event => {
     case 'compare': showComparison(); break;
     case 'clear-compare': comparison = []; render(); break;
     case 'clear-session': session = { profile: null, saved: [], appointments: [], tasks: [], myProviders: [], symptoms: [], treatments: [] }; comparison = []; persist(); dialog.close(); navigate('welcome'); break;
+    case 'add-provider': showAddProviderDialog(); break;
+    case 'add-symptom': showAddSymptomDialog(); break;
+    case 'add-treatment': showAddTreatmentDialog(); break;
+    case 'find-aid': showFindAidDialog(target.dataset.treatment); break;
   }
 });
 document.addEventListener('change', event => {
@@ -288,6 +362,27 @@ document.addEventListener('submit', event => {
     event.preventDefault(); const id = event.target.dataset.id; const values = Object.fromEntries(new FormData(event.target));
     if (!session.appointments.some(a => a.id === id && a.date === values.date && a.time === values.time)) session.appointments.push({ id, ...values });
     persist(); dialog.close(); navigate('dashboard'); toast('Demo appointment added. This is not a real booking.');
+  }
+  if (event.target.id === 'add-provider-form') {
+    event.preventDefault();
+    const fd = Object.fromEntries(new FormData(event.target));
+    const item = { id: event.target.dataset.editId || Date.now().toString(), name: fd.name.trim(), specialty: (fd.specialty || '').trim(), isCurrent: fd.isCurrent === 'true', inNetwork: 'inNetwork' in fd };
+    if (event.target.dataset.editId) { session.myProviders = session.myProviders.map(p => p.id === item.id ? item : p); } else { session.myProviders = [...session.myProviders, item]; }
+    persist(); dialog.close(); navigate('dashboard');
+  }
+  if (event.target.id === 'add-symptom-form') {
+    event.preventDefault();
+    const fd = Object.fromEntries(new FormData(event.target));
+    const item = { id: event.target.dataset.editId || Date.now().toString(), name: fd.name.trim(), severity: Number(fd.severity) || 1 };
+    if (event.target.dataset.editId) { session.symptoms = session.symptoms.map(s => s.id === item.id ? item : s); } else { session.symptoms = [...session.symptoms, item]; }
+    persist(); dialog.close(); navigate('dashboard');
+  }
+  if (event.target.id === 'add-treatment-form') {
+    event.preventDefault();
+    const fd = Object.fromEntries(new FormData(event.target));
+    const item = { id: event.target.dataset.editId || Date.now().toString(), name: fd.name.trim(), type: fd.type || 'Medication', status: fd.status || 'unknown', sideEffects: 'sideEffects' in fd };
+    if (event.target.dataset.editId) { session.treatments = session.treatments.map(t => t.id === item.id ? item : t); } else { session.treatments = [...session.treatments, item]; }
+    persist(); dialog.close(); navigate('dashboard');
   }
 });
 dialog.addEventListener('click', e => { if (e.target === dialog && (e.clientX < dialog.getBoundingClientRect().left || e.clientX > dialog.getBoundingClientRect().right || e.clientY < dialog.getBoundingClientRect().top || e.clientY > dialog.getBoundingClientRect().bottom)) dialog.close(); });

@@ -56,6 +56,39 @@ dialog{color:#2f4236;position:fixed;border:1px solid #d7dfd0;border-radius:15px;
 .dash-ask-head .eyebrow{color:#5a7250}
 .dash-ask-head h2{font-size:22px;margin-top:6px;color:#2e4435}
 .dash-ask-empty{font-size:12px;line-height:1.9;color:#6b7f63;max-width:540px}
+/* Phase 2 – dashboard editing */
+.dash-item-actions{display:flex;align-items:center;gap:4px}
+.dash-sym-right{display:flex;align-items:center;gap:6px}
+.dash-treat-actions{display:flex;align-items:center;gap:2px;margin-left:auto}
+.dash-treatment-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.icon-button{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:none;background:transparent;cursor:pointer;color:var(--muted);padding:0;transition:background .15s,color .15s}
+.icon-button:hover{background:#f0f4eb;color:var(--green)}
+.icon-button svg{width:14px;height:14px;stroke-width:1.8}
+/* dialog form styles */
+.quick-chips{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 20px}
+.chip{background:#f0f4eb;border:1px solid #d9e4d0;border-radius:20px;padding:5px 11px;font-size:10px;color:#3d5c46;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s}
+.chip:hover{background:#e1edd7;border-color:#b7cfa8}
+.form-label{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:600;color:#3a4a3e;margin-bottom:14px}
+.form-label input,.form-label select{padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:12px;font-family:inherit;color:#2d3d31;background:#fff;outline:none;transition:border-color .15s}
+.form-label input:focus,.form-label select:focus{border-color:var(--green)}
+.radio-group{border:1px solid var(--line);border-radius:8px;padding:12px 14px 10px;margin-bottom:14px}
+.radio-group legend{font-size:10px;font-weight:600;color:var(--muted);padding:0 4px;text-transform:uppercase;letter-spacing:.04em}
+.radio-label{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;cursor:pointer;color:#2d3d31}
+.radio-label input{accent-color:var(--green)}
+.check-label{display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;color:#2d3d31;margin-bottom:18px}
+.check-label input{accent-color:var(--green);width:15px;height:15px}
+.severity-fieldset{border:1px solid var(--line);border-radius:8px;padding:12px 14px 14px;margin-bottom:14px}
+.severity-fieldset legend{font-size:10px;font-weight:600;color:var(--muted);padding:0 4px;text-transform:uppercase;letter-spacing:.04em}
+.severity-options{display:flex;gap:10px;margin-top:10px}
+.sev-opt{display:flex;flex-direction:column;align-items:center;gap:7px;flex:1;border:1px solid var(--line);border-radius:8px;padding:11px 8px;cursor:pointer;font-size:11px;color:var(--muted);transition:border-color .15s,background .15s}
+.sev-opt input{display:none}
+.sev-opt.checked,.sev-opt:has(input:checked){border-color:var(--green);background:#f0f8ec;color:var(--green)}
+.sev-opt .sev-dots{display:flex;gap:4px}
+.status-group.radio-group{display:grid;grid-template-columns:1fr 1fr}
+.status-group legend{grid-column:1/-1}
+.remove-link{color:#b04040;font-size:10px;margin-top:4px;margin-bottom:12px;display:block;text-align:left}
+.remove-link:hover{color:#8b1f1f}
+.primary.full{width:100%;justify-content:center;margin-top:4px}
 
 @media(min-width:1500px){.workspace main{padding-top:12px}.dashboard-columns{grid-template-columns:minmax(0,1fr) 300px}.advocate-card{padding:40px}.advocate-card>.botanical{margin-right:50px}.provider-card.compact{padding:24px}.compact .provider-name h3{font-size:14px}.compact .provider-facts>span,.compact .provider-facts .network{font-size:10px}.compact .provider-bottom .text-button{font-size:11px}.next-steps{padding:30px}.next-steps h2{font-size:29px}.task strong{font-size:12px}.task small{font-size:11px}.resource-card h3{font-size:14px}.resource-card p{font-size:12px}}
 @media(max-width:1150px){.sidebar{width:200px;padding-left:14px;padding-right:14px}.workspace{margin-left:200px;width:calc(100% - 200px)}.workspace main{padding:30px 28px 50px}.topbar{padding:0 28px}.dashboard-columns{grid-template-columns:minmax(0,1fr) 230px;gap:19px}.preferences{gap:15px}.preferences>div{padding-right:14px}.preferences strong{font-size:10px}.provider-facts{gap:8px}.advocate-card>.botanical{width:200px;height:230px;margin-right:-20px}.advocate-card h2{font-size:30px}.filter-row{grid-template-columns:1fr 1fr}.provider-grid{grid-template-columns:1fr}.resource-grid{grid-template-columns:1fr}.resource-grid .resource-card p{max-width:500px}.welcome{padding:30px}.welcome h1{font-size:59px}.welcome main{column-gap:20px}.compare-bar>span{display:none}}
