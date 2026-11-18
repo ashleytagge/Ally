@@ -34,6 +34,10 @@ const icons = {
   leaf: '<path d="M20 3C9 1 1 8 5 16s17 3 15-13ZM4 21 16 8"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
   external: '<path d="M14 3h7v7m0-7L10 14m0-10H4v16h16v-6"/>',
+  plus: '<path d="M12 5v14m-7-7h14"/>',
+  activity: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+  pill: '<path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/>',
+  users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87m-4-12a4 4 0 0 1 0 7.75"/>',
 };
 const icon = name => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.heart}</svg>`;
 const brand = `<span class="wordmark">ally<span>·</span></span>`;
@@ -91,9 +95,38 @@ function banner() { return `<div class="sample-banner"><span class="sample-tag">
 function pageHeading(eyebrow, title, sub, action = '') { return `<div class="page-heading"><div><span class="eyebrow">${eyebrow}</span><h1 tabindex="-1">${title}</h1><p>${sub}</p></div>${action}</div>`; }
 function dashboard() {
   const p = session.profile;
-  const matches = findProviders({ ...p, condition: focusedCondition() }, initialFilters());
-  return `<section class="preferences" aria-label="Your care preferences"><div class="pref-diagnoses"><span>My diagnoses</span><div class="diagnosis-pills">${(Array.isArray(p.conditions) ? p.conditions : [p.condition]).map(c => `<button class="diagnosis-pill${focusedCondition()===c?' active':''}" data-condition-switch="${escape(c)}">${escape(c)}</button>`).join('')}</div></div><div><span>Your insurance</span><strong>${escape(p.insurance)}</strong></div><div><span>Your area</span><strong>${locations[p.location].label}</strong></div><button class="text-button" data-action="profile">Edit preferences</button></section><div class="dashboard-columns"><section><div class="section-heading"><div><h2>A place to start</h2><p>Care options for ${escape(focusedCondition())}.</p></div><button class="text-button" data-view="providers">View all ${icon('arrow')}</button></div>${(() => { const s = getAIState(); return s.loading ? '<div class="provider-list"><div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is finding care options for you…</p></div></div>' : '<div class="provider-list">' + (s.results ? s.results.providers.slice(0, 2).map(p => agentProviderCard(p, true)) : matches.slice(0, 2).map(p => providerCard(p, true))).join('') + '</div>'; })()} <div class="section-heading resources-heading"><div><h2>A little knowledge helps</h2><p>Reliable information, at your own pace.</p></div><button class="text-button" data-view="resources">All resources ${icon('arrow')}</button></div>${resourceCard(resources.find(r => r.condition === p.condition) || resources[0])}</section><aside><section class="next-steps"><span class="eyebrow">AT YOUR PACE</span><h2>Your next small steps</h2><p>There’s no rush to do it all.</p>${[['coverage', 'Check your coverage', 'Ask your insurer about your exact plan, referral needs, and costs.'], ['questions', 'Write down your questions', 'What would help you feel more prepared for a first visit?'], ['records', 'Gather the basics', 'Keep your referral, medication list, and prior records handy.']].map(([id, title, text]) => `<label class="task"><input type="checkbox" data-task="${id}" ${session.tasks.includes(id) ? 'checked' : ''}><span><strong>${title}</strong><small>${text}</small></span></label>`).join('')}<span class="small muted">${session.tasks.length} of 3 steps checked · just for you</span></section><section class="saved-note">${icon('bookmark')}<h3>Your shortlist, in one place.</h3><p>${session.saved.length ? `You’ve saved ${session.saved.length} sample provider${session.saved.length === 1 ? '' : 's'}. Pick up where you left off.` : 'Save a provider whenever you want to come back to them.'}</p><button class="text-button" data-view="saved">View saved providers ${icon('arrow')}</button></section>${appointments()}</aside></div>`;
+  const myProvs = session.myProviders || [];
+  const syms = session.symptoms || [];
+  const treats = session.treatments || [];
+  const hasData = syms.length > 0 || treats.length > 0;
+  const conds = Array.isArray(p.conditions) ? p.conditions : [p.condition];
+
+  const prefStrip = `<section class="preferences" aria-label="Your care preferences"><div class="pref-diagnoses"><span>My diagnoses</span><div class="diagnosis-pills">${conds.map(c => `<button class="diagnosis-pill${focusedCondition()===c?' active':''}" data-condition-switch="${escape(c)}">${escape(c)}</button>`).join('')}</div></div><div><span>Your insurance</span><strong>${escape(p.insurance)}</strong></div><div><span>Your area</span><strong>${locations[p.location].label}</strong></div><button class="text-button" data-action="profile">Edit preferences</button></section>`;
+
+  const providersCard = `<section class="dash-card" id="dash-providers">
+    <div class="dash-card-head"><h2>My Providers</h2><button class="text-button" data-action="add-provider">${icon('plus')} Add provider</button></div>
+    <div class="dash-insurance"><span class="eyebrow">INSURANCE</span><strong>${escape(p.insurance)}</strong></div>
+    ${myProvs.length ? myProvs.map(pv => `<div class="dash-provider-item"><div class="dash-provider-info"><strong>${escape(pv.name)}</strong><span>${escape(pv.specialty)}${pv.inNetwork ? ' · <span class="in-network">In network</span>' : ''}</span></div><span class="dash-prov-tag">${pv.isCurrent ? 'Current' : 'Past'}</span></div>`).join('') : `<div class="dash-empty">${icon('users')}<p>Add the doctors and specialists you're seeing or have seen.</p><button class="text-button" data-view="providers">Find care ${icon('arrow')}</button></div>`}
+  </section>`;
+
+  const symptomsCard = `<section class="dash-card" id="dash-symptoms">
+    <div class="dash-card-head"><h2>My Symptoms</h2><button class="text-button" data-action="add-symptom">${icon('plus')} Add symptom</button></div>
+    ${syms.length ? syms.map(sym => `<div class="dash-symptom-item"><span>${escape(sym.name)}</span><div class="severity-dots">${[1,2,3].map(n => `<span class="severity-dot${sym.severity >= n ? ' filled' : ''}"></span>`).join('')}</div></div>`).join('') : `<div class="dash-empty">${icon('activity')}<p>Tracking your symptoms helps Ally suggest better questions for your next appointment.</p></div>`}
+  </section>`;
+
+  const treatmentsCard = `<section class="dash-card dash-card-wide" id="dash-treatments">
+    <div class="dash-card-head"><h2>My Treatments</h2><button class="text-button" data-action="add-treatment">${icon('plus')} Add treatment</button></div>
+    ${treats.length ? `<div class="dash-treatments-grid">${treats.map(t => `<div class="dash-treatment-item"><div class="dash-treatment-top"><strong>${escape(t.name)}</strong><span class="treatment-type">${escape(t.type || 'Medication')}</span></div><div class="dash-treatment-status"><span class="status-badge status-${t.status || 'unknown'}">${t.status === 'working' ? 'Working' : t.status === 'partial' ? 'Partially' : t.status === 'not-working' ? 'Not working' : 'No update'}</span>${t.sideEffects ? `<span class="side-effects-flag">Side effects noted</span>` : ''}</div><button class="text-button aid-btn" data-action="find-aid" data-treatment="${escape(t.name)}">${icon('leaf')} Find coverage options</button></div>`).join('')}</div>` : `<div class="dash-empty">${icon('pill')}<p>Add medications, supplements, and other treatments you're currently following.</p></div>`}
+  </section>`;
+
+  const askDoctorSection = `<section class="dash-ask-doctor" id="dash-ask">
+    <div class="dash-ask-head"><span class="eyebrow">PERSONALIZED SUGGESTIONS</span><h2>Ask your doctor about</h2></div>
+    ${hasData ? `<div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is preparing suggestions based on your care…</p></div>` : `<p class="dash-ask-empty">Add your symptoms and treatments above and Ally will suggest questions and options to bring up at your next appointment — based on what's working and what isn't.</p>`}
+  </section>`;
+
+  return `${prefStrip}<div class="dash-grid">${providersCard}${symptomsCard}</div>${treatmentsCard}${askDoctorSection}`;
 }
+
 function providerCard(p, compact = false) {
   const saved = session.saved.includes(p.id);
   return `<article class="provider-card ${compact ? 'compact' : ''}"><div class="provider-top"><div class="avatar ${p.color}">${p.initials}</div><div class="provider-name"><h3>Dr. ${p.name}</h3><p>${p.specialty} <span>· Sample provider</span></p></div><button class="icon-button save ${saved ? 'is-saved' : ''}" data-save="${p.id}" aria-label="${saved ? 'Unsave' : 'Save'} Dr. ${p.name}" aria-pressed="${saved}">${icon('bookmark')}</button></div><div class="provider-facts"><span class="network ${networkLabel(p, session.profile) === 'Sample plan match' ? 'match' : ''}">${icon('check')} ${networkLabel(p, session.profile)}</span><span>${icon('pin')} ${distance(p, session.profile)} mi · sample</span><span>${icon('clock')} ${p.days} days · sample</span></div>${!compact ? `<p class="provider-description">${p.description}</p><p class="why">Why shown: sample ${p.specialty.toLowerCase()} option tagged for ${escape(session.profile.condition.toLowerCase())}. This is a rule-based demo, not an AI recommendation.</p>` : ''}<div class="provider-bottom"><label class="compare-check"><input type="checkbox" data-compare="${p.id}" ${comparison.includes(p.id) ? 'checked' : ''}> Compare</label><button class="text-button" data-provider="${p.id}">View sample profile ${icon('arrow')}</button></div></article>`;
@@ -230,7 +263,7 @@ document.addEventListener('click', event => {
     case 'reset-filters': filters = initialFilters(); render(); break;
     case 'compare': showComparison(); break;
     case 'clear-compare': comparison = []; render(); break;
-    case 'clear-session': session = { profile: null, saved: [], appointments: [], tasks: [] }; comparison = []; persist(); dialog.close(); navigate('welcome'); break;
+    case 'clear-session': session = { profile: null, saved: [], appointments: [], tasks: [], myProviders: [], symptoms: [], treatments: [] }; comparison = []; persist(); dialog.close(); navigate('welcome'); break;
   }
 });
 document.addEventListener('change', event => {

@@ -22,6 +22,6 @@ export function validProfile(p) { if (!p) return false; const conds = Array.isAr
 export function readState(storage) {
   try {
     const data = JSON.parse(storage.getItem('ally-session-v1'));
-    return { profile: validProfile(data?.profile) ? data.profile : null, saved: Array.isArray(data?.saved) ? data.saved.filter(id => providers.some(p => p.id === id)) : [], appointments: Array.isArray(data?.appointments) ? data.appointments.filter(a => providers.some(p => p.id === a.id) && typeof a.date === 'string' && typeof a.time === 'string') : [], tasks: Array.isArray(data?.tasks) ? data.tasks.filter(t => ['coverage', 'questions', 'records'].includes(t)) : [] };
-  } catch { return { profile: null, saved: [], appointments: [], tasks: [] }; }
+    return { profile: validProfile(data?.profile) ? data.profile : null, saved: Array.isArray(data?.saved) ? data.saved.filter(id => providers.some(p => p.id === id)) : [], appointments: Array.isArray(data?.appointments) ? data.appointments.filter(a => providers.some(p => p.id === a.id) && typeof a.date === 'string' && typeof a.time === 'string') : [], tasks: Array.isArray(data?.tasks) ? data.tasks.filter(t => ['coverage', 'questions', 'records'].includes(t)) : [], myProviders: Array.isArray(data?.myProviders) ? data.myProviders : [], symptoms: Array.isArray(data?.symptoms) ? data.symptoms : [], treatments: Array.isArray(data?.treatments) ? data.treatments : [] };
+  } catch { return { profile: null, saved: [], appointments: [], tasks: [], myProviders: [], symptoms: [], treatments: [] }; }
 }
