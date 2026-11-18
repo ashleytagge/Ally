@@ -1,4 +1,5 @@
 import { conditions, insurers, locations, providers, resources, demoProfile } from './data.js';
+import { askAlly } from './agent1.js';
 import { initialFilters, findProviders, networkLabel, distance, readState } from './model.js';
 
 const app = document.querySelector('#app');
@@ -10,6 +11,8 @@ let filters = initialFilters();
 let comparison = [];
 let resourceQuery = '';
 let resourceTopic = 'all';
+let aiState = { results: null, loading: false, error: null };
+let agentProviderCache = {};
 const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const icons = {
   heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>',
@@ -36,6 +39,25 @@ let toastTimeout;
 function toast(message) { const el = document.querySelector('#toast'); el.textContent = message; el.classList.add('visible'); clearTimeout(toastTimeout); toastTimeout = setTimeout(() => el.classList.remove('visible'), 4000); }
 function navigate(next) {
   view = next; filters = initialFilters(); render(); window.scrollTo(0, 0); document.querySelector('h1')?.focus();
+  if (session.profile && !aiState.results && !aiState.loading && (next === 'providers' || next === 'dashboard')) {
+    fetchAIResults();
+  }
+}
+async function fetchAIResults() {
+  aiState.loading = true;
+  const el = document.querySelector('#provider-results');
+  if (el) el.innerHTML = '<div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is finding care options for you…</p></div>';
+  try {
+    aiState.results = await askAlly(session.profile);
+    aiState.error = null;
+  } catch (err) {
+    aiState.error = err.message;
+    aiState.results = null;
+    console.error('Agent 1:', err);
+  } finally {
+    aiState.loading = false;
+    render();
+  }
 }
 function showDialog(content) { dialog.innerHTML = `<button class="icon-button dialog-close" data-action="close" aria-label="Close dialog">${icon('close')}</button>${content}`; dialog.showModal(); }
 function render() {
@@ -59,7 +81,7 @@ function pageHeading(eyebrow, title, sub, action = '') { return `<div class="pag
 function dashboard() {
   const p = session.profile;
   const matches = findProviders(p, initialFilters());
-  return `${pageHeading('YOUR NEXT CHAPTER', 'A little clarity. A next step.', 'You don’t have to navigate this all at once. Let’s start here.')}<section class="advocate-card"><div><div class="ally-label">${icon('leaf')} A NOTE FROM ALLY <span>Scripted demo</span></div><h2>Let’s make finding care<br>feel a little more manageable.</h2><p>I’ve organized sample care options around your preferences. You can explore, compare, and decide what feels right for you.</p><button class="primary" data-view="providers">Explore care options ${icon('arrow')}</button></div>${botanical()}</section><section class="preferences" aria-label="Your care preferences"><div><span>Your diagnosis</span><strong>${escape(p.condition)}</strong></div><div><span>Your insurance</span><strong>${escape(p.insurance)}</strong></div><div><span>Your area</span><strong>${locations[p.location].label}</strong></div><button class="text-button" data-action="profile">Edit preferences</button></section>${banner()}<div class="dashboard-columns"><section><div class="section-heading"><div><h2>A place to start</h2><p>Sample options for ${escape(p.condition.toLowerCase())}.</p></div><button class="text-button" data-view="providers">View all ${icon('arrow')}</button></div><div class="provider-list">${matches.slice(0, 2).map(p => providerCard(p, true)).join('')}</div><div class="section-heading resources-heading"><div><h2>A little knowledge helps</h2><p>Reliable information, at your own pace.</p></div><button class="text-button" data-view="resources">All resources ${icon('arrow')}</button></div>${resourceCard(resources.find(r => r.condition === p.condition) || resources[0])}</section><aside><section class="next-steps"><span class="eyebrow">AT YOUR PACE</span><h2>Your next small steps</h2><p>There’s no rush to do it all.</p>${[['coverage', 'Check your coverage', 'Ask your insurer about your exact plan, referral needs, and costs.'], ['questions', 'Write down your questions', 'What would help you feel more prepared for a first visit?'], ['records', 'Gather the basics', 'Keep your referral, medication list, and prior records handy.']].map(([id, title, text]) => `<label class="task"><input type="checkbox" data-task="${id}" ${session.tasks.includes(id) ? 'checked' : ''}><span><strong>${title}</strong><small>${text}</small></span></label>`).join('')}<span class="small muted">${session.tasks.length} of 3 steps checked · just for you</span></section><section class="saved-note">${icon('bookmark')}<h3>Your shortlist, in one place.</h3><p>${session.saved.length ? `You’ve saved ${session.saved.length} sample provider${session.saved.length === 1 ? '' : 's'}. Pick up where you left off.` : 'Save a provider whenever you want to come back to them.'}</p><button class="text-button" data-view="saved">View saved providers ${icon('arrow')}</button></section>${appointments()}</aside></div>`;
+  return `${pageHeading('YOUR NEXT CHAPTER', 'A little clarity. A next step.', 'You don’t have to navigate this all at once. Let’s start here.')}<section class="advocate-card"><div>${(() => { const s = aiState; return `<div class="ally-label">${icon('leaf')} A NOTE FROM ALLY${s.results ? '' : s.loading ? ' <span>Loading…</span>' : ' <span>Scripted demo</span>'}</div><h2>${s.results ? 'Here’s what I found for you.' : 'Let’s make finding care<br>feel a little more manageable.'}</h2><p>${s.results ? escape(s.results.meta.summary) : 'I’ve organized sample care options around your preferences. You can explore, compare, and decide what feels right for you.'}</p>`; })()} <button class="primary" data-view="providers">Explore care options ${icon('arrow')}</button></div>${botanical()}</section><section class="preferences" aria-label="Your care preferences"><div><span>Your diagnosis</span><strong>${escape(p.condition)}</strong></div><div><span>Your insurance</span><strong>${escape(p.insurance)}</strong></div><div><span>Your area</span><strong>${locations[p.location].label}</strong></div><button class="text-button" data-action="profile">Edit preferences</button></section>${banner()}<div class="dashboard-columns"><section><div class="section-heading"><div><h2>A place to start</h2><p>Sample options for ${escape(p.condition.toLowerCase())}.</p></div><button class="text-button" data-view="providers">View all ${icon('arrow')}</button></div><div class="provider-list">${matches.slice(0, 2).map(p => providerCard(p, true)).join('')}</div><div class="section-heading resources-heading"><div><h2>A little knowledge helps</h2><p>Reliable information, at your own pace.</p></div><button class="text-button" data-view="resources">All resources ${icon('arrow')}</button></div>${resourceCard(resources.find(r => r.condition === p.condition) || resources[0])}</section><aside><section class="next-steps"><span class="eyebrow">AT YOUR PACE</span><h2>Your next small steps</h2><p>There’s no rush to do it all.</p>${[['coverage', 'Check your coverage', 'Ask your insurer about your exact plan, referral needs, and costs.'], ['questions', 'Write down your questions', 'What would help you feel more prepared for a first visit?'], ['records', 'Gather the basics', 'Keep your referral, medication list, and prior records handy.']].map(([id, title, text]) => `<label class="task"><input type="checkbox" data-task="${id}" ${session.tasks.includes(id) ? 'checked' : ''}><span><strong>${title}</strong><small>${text}</small></span></label>`).join('')}<span class="small muted">${session.tasks.length} of 3 steps checked · just for you</span></section><section class="saved-note">${icon('bookmark')}<h3>Your shortlist, in one place.</h3><p>${session.saved.length ? `You’ve saved ${session.saved.length} sample provider${session.saved.length === 1 ? '' : 's'}. Pick up where you left off.` : 'Save a provider whenever you want to come back to them.'}</p><button class="text-button" data-view="saved">View saved providers ${icon('arrow')}</button></section>${appointments()}</aside></div>`;
 }
 function providerCard(p, compact = false) {
   const saved = session.saved.includes(p.id);
@@ -73,6 +95,13 @@ function directory() {
   return `${pageHeading(saved ? 'YOUR SHORTLIST' : 'FIND YOUR NEXT STEP', saved ? 'Care worth coming back to.' : 'Find care, with a little clarity.', saved ? 'Your saved sample providers. Explore the details when you’re ready.' : `Sample care options for ${escape(session.profile.condition.toLowerCase())} in ${locations[session.profile.location].label}.`, `<button class="secondary" data-action="profile">Edit preferences</button>`)}${banner()}${saved ? '<p class="small muted">Saved providers follow your diagnosis preference. Change it back to see providers saved for another diagnosis.</p>' : ''}${filterControls()}<div id="provider-results">${providerResults()}</div>`;
 }
 function providerResults() {
+  if (view !== 'saved' && aiState.loading) {
+    return '<div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is finding care options for you…</p></div>';
+  }
+  if (view !== 'saved' && aiState.results) {
+    const list = aiState.results.providers;
+    return `<div class="results-toolbar"><p role="status"><strong>${list.length}</strong> provider${list.length === 1 ? '' : 's'} found <span>· ${escape(locations[session.profile.location]?.label || session.profile.location)}</span></p></div>${list.length ? `<div class="provider-grid">${list.map(p => agentProviderCard(p)).join('')}</div>` : `<div class="empty">${icon('search')}<h2>No providers found.</h2><p>Try adjusting your preferences.</p></div>`}<p class="small muted" style="margin-top:1.5rem;text-align:center">Results from Ally’s AI · Always call providers to verify insurance, availability, and details before booking.</p>`;
+  }
   const list = findProviders(session.profile, filters, view === 'saved' ? session.saved : null);
   return `<div class="results-toolbar"><p role="status"><strong>${list.length}</strong> sample provider${list.length === 1 ? '' : 's'} <span>· ${locations[session.profile.location].label}</span></p><label>Sort by <select data-filter="sort">${[['relevance', 'Plan match first'], ['distance', 'Closest first'], ['availability', 'Soonest sample opening']].map(([v, t]) => `<option value="${v}" ${filters.sort === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div>${list.length ? `<div class="provider-grid">${list.map(p => providerCard(p)).join('')}</div>` : `<div class="empty">${icon(view === 'saved' ? 'bookmark' : 'search')}<h2>${view === 'saved' && !session.saved.length ? 'Your shortlist starts here.' : 'No sample options fit these filters.'}</h2><p>${view === 'saved' && !session.saved.length ? 'Save a provider from Find care to keep them close.' : 'Try a broader search or reset your filters. This demo has a small fictional directory.'}</p><button class="secondary" data-action="${view === 'saved' && !session.saved.length ? 'find' : 'reset-filters'}">${view === 'saved' && !session.saved.length ? 'Explore sample providers' : 'Reset filters'}</button></div>`}`;
 }
@@ -103,6 +132,60 @@ function appointments() {
 }
 function about() { showDialog(`<span class="eyebrow">ABOUT THIS PROTOTYPE</span><h2>Support, with clear boundaries.</h2><p>Ally is an initial healthcare navigation prototype for women with new autoimmune diagnoses, based on the Ally product pitch.</p><ul class="about-list"><li><strong>Fictional care directory.</strong> Names, plans, distances, phone numbers, and appointment openings are sample data. They are not verified.</li><li><strong>A scripted advocate.</strong> Ally uses simple matching rules. There is no live AI, diagnosis, or treatment advice.</li><li><strong>Session-only preferences.</strong> Your selections, saves, checklist, and demo appointments stay in this browser session. No analytics or account.</li><li><strong>Real educational links.</strong> Resources open NIH websites. Those sites have their own privacy policies.</li><li><strong>Research status.</strong> No prior user study was provided. Design choices are hypotheses from the product brief, not validated findings.</li></ul><button class="secondary" data-action="clear-session">Clear session & return to welcome</button>`); }
 
+// --- Agent 1 provider rendering ---
+function agentProviderCard(p) {
+  agentProviderCache[p.id] = p;
+  const statusClass = { in_network: 'match', verify: 'verify', out_of_network: 'out', unknown: '' }[p.insurance.status] || '';
+  const statusLabel = { in_network: '✔ In network', verify: 'Call to verify', out_of_network: 'Out of network', unknown: 'Coverage unknown' }[p.insurance.status] || 'Unknown';
+  const words = p.name.trim().split(/\s+/);
+  const initials = (words[0][0] + (words[words.length - 1][0] || '')).toUpperCase();
+  const palette = ['teal', 'sage', 'rose', 'warm', 'slate'];
+  const colorClass = palette[p.id.split('').reduce((a, c) => (a + c.charCodeAt(0)) & 0xff, 0) % palette.length];
+  return `<article class="provider-card">
+    <div class="provider-top">
+      <div class="avatar ${colorClass}">${initials}</div>
+      <div class="provider-name">
+        <h3>${escape(p.name)}</h3>
+        <p>${escape(p.specialty)}</p>
+      </div>
+    </div>
+    <div class="provider-facts">
+      <span class="network ${statusClass}">${icon('check')} ${statusLabel}</span>
+      <span>${icon('pin')} ~${p.distanceMiles} mi</span>
+      ${p.hours ? `<span>${icon('clock')} ${escape(p.hours.split(/[,;]/)[0])}</span>` : ''}
+    </div>
+    <p class="provider-description">${escape(p.insurance.note || '')}</p>
+    ${p.providers && p.providers.length ? `<p class="why">Providers: ${p.providers.slice(0, 3).map(pr => escape(pr.name)).join(' · ')}</p>` : ''}
+    <div class="provider-bottom">
+      <span></span>
+      <button class="text-button" data-agent-provider="${escape(p.id)}">View details ${icon('arrow')}</button>
+    </div>
+  </article>`;
+}
+function showAgentProvider(id) {
+  const p = agentProviderCache[id];
+  if (!p) return;
+  showDialog(`<span class="eyebrow">HEALTHCARE PROVIDER</span>
+    <div class="detail-heading" style="margin-bottom:1rem">
+      <h2 style="margin:0">${escape(p.name)}</h2>
+      <p style="margin:.25rem 0 0">${escape(p.specialty)}</p>
+    </div>
+    ${p.address ? `<p>${escape(p.address)}</p>` : ''}
+    <dl class="detail-facts">
+      <div><dt>Insurance</dt><dd>${escape(p.insurance.note || p.insurance.status)}</dd></div>
+      <div><dt>Distance</dt><dd>~${p.distanceMiles} miles</dd></div>
+      ${p.phone ? `<div><dt>Phone</dt><dd>${escape(p.phone)}</dd></div>` : ''}
+      ${p.hours ? `<div><dt>Hours</dt><dd>${escape(p.hours)}</dd></div>` : ''}
+      ${p.rating ? `<div><dt>Rating</dt><dd>${p.rating}★</dd></div>` : ''}
+    </dl>
+    ${p.providers && p.providers.length ? `<div class="why-box"><strong>Providers at this location</strong><ul style="margin:.5rem 0 0;padding-left:1.25rem">${p.providers.map(pr => `<li>${escape(pr.name)} · ${escape(pr.role)}</li>`).join('')}</ul></div>` : ''}
+    ${p.bookingNote ? `<p class="small muted" style="margin-top:1rem">${escape(p.bookingNote)}</p>` : ''}
+    <div class="detail-actions">
+      ${p.phone ? `<a class="primary" href="tel:${escape(p.phone)}">Call to book ${icon('arrow')}</a>` : ''}
+    </div>
+    <p class="small muted" style="margin-top:1rem">AI-generated results. Always call ahead to verify insurance coverage, provider availability, and referral requirements before booking.</p>`);
+}
+
 // Delegated events keep repeated cards and dialogs consistent without a UI framework.
 document.addEventListener('click', event => {
   const target = event.target.closest('button, a'); if (!target) return;
@@ -112,6 +195,7 @@ document.addEventListener('click', event => {
     const openDetail = dialog.open; render(); if (openDetail) showProvider(id); toast(session.saved.includes(id) ? 'Sample provider saved to your shortlist.' : 'Provider removed from your shortlist.');
   }
   if (target.dataset.provider) showProvider(target.dataset.provider);
+  if (target.dataset.agentProvider) showAgentProvider(target.dataset.agentProvider);
   if (target.dataset.book) showBooking(target.dataset.book);
   if (target.dataset.phone) {
     const p = providers.find(p => p.id === target.dataset.phone);
@@ -148,7 +232,7 @@ document.addEventListener('input', event => {
   if (event.target.id === 'resource-search') { resourceQuery = event.target.value; document.querySelector('#resource-results').innerHTML = resourceResults(); }
 });
 document.addEventListener('submit', event => {
-  if (event.target.id === 'profile-form') { event.preventDefault(); session.profile = Object.fromEntries(new FormData(event.target)); comparison = []; persist(); dialog.close(); navigate('dashboard'); }
+  if (event.target.id === 'profile-form') { event.preventDefault(); session.profile = Object.fromEntries(new FormData(event.target)); aiState = { results: null, loading: false, error: null }; agentProviderCache = {}; comparison = []; persist(); dialog.close(); navigate('dashboard'); }
   if (event.target.id === 'booking-form') {
     event.preventDefault(); const id = event.target.dataset.id; const values = Object.fromEntries(new FormData(event.target));
     if (!session.appointments.some(a => a.id === id && a.date === values.date && a.time === values.time)) session.appointments.push({ id, ...values });
