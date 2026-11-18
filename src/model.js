@@ -1,5 +1,5 @@
 import { providers, conditions, insurers, locations } from './data.js';
-export const initialFilters = () => ({ query: '', specialty: '', network: false, distance: '50', availability: 'any', sort: 'relevance' });
+export const initialFilters = () => ({ query: '', inNetwork: false, distance: 'any', sort: 'relevance' });
 export function networkLabel(provider, profile) {
   if (!profile || !insurers.slice(0, 4).includes(profile.insurance)) return 'Coverage unknown';
   return provider.plans.includes(profile.insurance) ? 'Sample plan match' : 'No sample plan match';
@@ -17,7 +17,7 @@ export function findProviders(profile, filters, savedOnly = null) {
     .filter(p => filters.availability === 'any' || p.days <= Number(filters.availability))
     .sort((a, b) => filters.sort === 'distance' ? distance(a, profile) - distance(b, profile) : filters.sort === 'availability' ? a.days - b.days : Number(b.plans.includes(profile.insurance)) - Number(a.plans.includes(profile.insurance)) || a.days - b.days);
 }
-export function validProfile(p) { return !!p && conditions.includes(p.condition) && insurers.includes(p.insurance) && Object.hasOwn(locations, p.location); }
+export function validProfile(p) { if (!p) return false; const conds = Array.isArray(p.conditions) ? p.conditions : (p.condition ? [p.condition] : []); return conds.length > 0 && conds.every(c => conditions.includes(c)) && insurers.includes(p.insurance) && Object.hasOwn(locations, p.location); }
 // Session-only storage avoids retaining diagnosis/insurance after the browser session.
 export function readState(storage) {
   try {

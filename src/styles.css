@@ -41,3 +41,58 @@ dialog{color:#2f4236;position:fixed;border:1px solid #d7dfd0;border-radius:15px;
 }
 .network.verify { color: #92700a; background: #fef3c7; }
 .network.out { color: #991b1b; background: #fee2e2; }
+
+/* ── Diagnosis pills (dashboard preferences) ─────────────────────── */
+.pref-diagnoses { display: flex; flex-direction: column; gap: .3rem; }
+.diagnosis-pills { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .2rem; }
+.diagnosis-pill {
+  background: var(--surface-raised);
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: .75rem;
+  font-weight: 500;
+  letter-spacing: .02em;
+  padding: .25rem .75rem;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.diagnosis-pill:hover { border-color: var(--brand); color: var(--brand); }
+.diagnosis-pill.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+/* ── Multi-diagnosis form fieldset ───────────────────────────────── */
+.diagnosis-fieldset {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: .75rem 1rem;
+  margin: 0;
+}
+.diagnosis-fieldset legend {
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  padding: 0 .25rem;
+  color: var(--text-secondary);
+}
+.diagnosis-checks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .4rem .75rem;
+  margin-top: .5rem;
+}
+.check-label {
+  display: flex;
+  align-items: flex-start;
+  gap: .4rem;
+  font-size: .875rem;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.check-label input[type="checkbox"] { margin-top: .15rem; flex-shrink: 0; }
+
+/* ── In-network only filter toggle ──────────────────────────────── */
+.filter-toggle { display: flex; align-items: center; gap: .4rem; font-size: .875rem; cursor: pointer; }

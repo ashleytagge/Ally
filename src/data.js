@@ -1,5 +1,5 @@
 // Entirely fictional fixtures. Never describe these as verified providers or networks.
-export const conditions = ['Rheumatoid arthritis', 'Lupus', 'Celiac disease', 'Hashimoto’s thyroiditis', 'Still figuring it out'];
+export const conditions = ['Hashimoto’s thyroiditis', 'Rheumatoid arthritis', 'Lupus (SLE)', 'Celiac disease', 'Psoriasis / Psoriatic arthritis', 'Multiple sclerosis', 'Type 1 diabetes', 'Sjögren’s syndrome', 'Crohn’s disease', 'Ulcerative colitis', 'Still figuring it out'];
 export const insurers = ['Aetna', 'Blue Cross Blue Shield', 'Cigna', 'UnitedHealthcare', 'Other / not sure', 'Uninsured / self-pay'];
 export const locations = {
   denver: { label: 'Denver, CO', zip: '80202' },
@@ -22,4 +22,4 @@ export const resources = [
   { title: 'A guide to celiac disease', source: 'NIH · NIDDK', topic: 'Your diagnosis', condition: 'Celiac disease', url: 'https://www.niddk.nih.gov/health-information/digestive-diseases/celiac-disease', text: 'An introduction to celiac disease and topics to discuss with your care team.' },
   { title: 'Understanding Hashimoto’s disease', source: 'NIH · NIDDK', topic: 'Your diagnosis', condition: 'Hashimoto’s thyroiditis', url: 'https://www.niddk.nih.gov/health-information/endocrine-diseases/hashimotos-disease', text: 'Information about Hashimoto’s disease from NIDDK.' },
 ];
-export const demoProfile = { condition: conditions[0], insurance: 'Aetna', location: 'denver' };
+export const demoProfile = { conditions: [conditions[0]], insurance: 'Aetna', location: 'denver' };
