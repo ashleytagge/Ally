@@ -52,11 +52,15 @@ Preferences, saved provider IDs, checklist values, and demo appointments use `se
 
 ## Architecture / Claude Code handoff
 
+Agent 1 and Agent 2 are isolated server and client modules. Agent 1 calls `POST /Ally/api/agent1`; Agent 2 calls `POST /Ally/api/agent2` with only the selected provider and scheduling location/condition context. Agent 2 returns publicly described opening slots and never receives Agent 1's prompt or provider-search instructions. Set `ANTHROPIC_API_KEY` for Anthropic access, or set `AGENT2_API_KEY` to give the booking agent a separate key.
+
 | File | Responsibility |
 | --- | --- |
 | `src/data.js` | Fictional provider fixtures, diagnoses, insurers, sample areas, NIH resources |
 | `src/model.js` | Pure matching/filtering/sorting, plan labels, distance fixtures, session validation |
 | `src/app.js` | Named rendering functions for screens/cards/dialogs and delegated UI events |
+| `src/agent1.js` | Independent client adapter for the resource-finding Agent 1 API |
+| `src/agent2.js` | Independent client adapter for the appointment-booking Agent 2 API |
 | `src/styles.css` | Sage palette, typography, layouts, responsive rules, focus and motion handling |
 | `src/fonts.css`, `src/fonts/` | Local fonts and licenses |
 | `scripts/build.mjs` | Copies static assets to `dist/`, checks relative entry paths |

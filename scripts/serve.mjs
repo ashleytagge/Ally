@@ -67,9 +67,46 @@ Rules:
 - The meta.summary is what Ally says to the user — warm, 1–2 sentences, first person ("I found…")
 - Never output anything outside the JSON`;
 
+// --- Agent 2 system prompt ---
+// This prompt and endpoint are intentionally independent of Agent 1.
+const AGENT2_SYSTEM = `You are a healthcare appointment availability assistant.
+
+Given a provider and location, find publicly available appointment openings that a patient could schedule themselves.
+
+Return valid JSON only — no markdown, no explanation, no extra text — in this exact structure:
+{
+  "providerId": "id supplied in the request",
+  "providerName": "provider name",
+  "slots": [
+    {
+      "date": "YYYY-MM-DD",
+      "time": "h:mm AM",
+      "timezone": "America/Denver",
+      "mode": "in_person|telehealth",
+      "bookingUrl": "https://...",
+      "note": "Short scheduling note"
+    }
+  ],
+  "meta": {
+    "location": "as given",
+    "searchedAt": "ISO 8601 timestamp",
+    "disclaimer": "Availability may change; verify before booking"
+  }
+}
+
+Rules:
+- Only include appointments that are publicly described as open or directly self-bookable.
+- Never invent availability, appointment URLs, provider information, or a date.
+- If you cannot verify a provider or live openings, return "slots": [].
+- Include at most 10 of the soonest openings.
+- Use the timezone for the requested location.
+- mode must be exactly in_person or telehealth.
+- bookingUrl may be null when no direct booking link is available.
+- Do not include personal or sensitive user information.
+- Never output anything outside the JSON`;
+
 // --- Anthropic API helper ---
-async function callAnthropic(systemPrompt, userMessage) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+async function callAnthropic(systemPrompt, userMessage, apiKey = process.env.ANTHROPIC_API_KEY) {
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set in .env');
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -127,8 +164,52 @@ http.createServer(async (req, res) => {
 
   // POST /Ally/api/agent2 — Booking Agent (partner's work)
   if (req.method === 'POST' && pathname === '/Ally/api/agent2') {
-    res.writeHead(501, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Agent 2 (Booking) not yet implemented' }));
+    try {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const body = JSON.parse(Buffer.concat(chunks).toString());
+      const provider = body.provider || body;
+      const providerId = provider.id || body.providerId || 'unknown-provider';
+      const providerName = provider.name || body.providerName || 'Unknown provider';
+      const location = body.location || body.meta?.location || 'unknown location';
+      const condition = body.condition || body.meta?.condition || null;
+
+      if (!providerName || providerName === 'Unknown provider') {
+        throw new Error('providerName is required');
+      }
+
+      const userMessage =
+        `Find publicly self-bookable appointment openings for:\n` +
+        `- Provider: ${providerName}\n` +
+        `- Address: ${provider.address || 'not provided'}\n` +
+        `- Phone: ${provider.phone || 'not provided'}\n` +
+        `- Location: ${location}\n` +
+        `- Specialty: ${provider.specialty || 'not provided'}\n` +
+        `${condition ? `- Visit type: ${condition}\n` : ''}` +
+        `- Search date: ${new Date().toISOString()}`;
+
+      const result = await callAnthropic(
+        AGENT2_SYSTEM,
+        userMessage,
+        process.env.AGENT2_API_KEY || process.env.ANTHROPIC_API_KEY,
+      );
+      result.providerId = providerId;
+      result.providerName = providerName;
+      result.slots = Array.isArray(result.slots) ? result.slots : [];
+      result.meta = {
+        location,
+        searchedAt: new Date().toISOString(),
+        disclaimer: 'Availability may change; verify before booking',
+        ...result.meta,
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(result));
+    } catch (err) {
+      console.error('Agent 2 error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
     return;
   }
 

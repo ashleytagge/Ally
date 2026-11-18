@@ -8,13 +8,17 @@ export function distance(provider, profile) {
   return Number((provider.miles * ({ denver: 1, slc: 1.2, phoenix: 1.5 }[profile?.location] || 1)).toFixed(1));
 }
 export function findProviders(profile, filters, savedOnly = null) {
+  const condition = profile.condition || (Array.isArray(profile.conditions) ? profile.conditions[0] : null);
+  const networkOnly = filters.network ?? filters.inNetwork;
+  const distanceLimit = filters.distance === 'any' ? Infinity : Number(filters.distance);
+  const availabilityLimit = filters.availability === 'any' ? Infinity : Number(filters.availability);
   return providers.filter(p => !savedOnly || savedOnly.includes(p.id))
-    .filter(p => p.conditions.includes(profile.condition))
+    .filter(p => condition ? p.conditions.includes(condition) : false)
     .filter(p => `${p.name} ${p.specialty}`.toLowerCase().includes(filters.query.trim().toLowerCase()))
     .filter(p => !filters.specialty || p.specialty === filters.specialty)
-    .filter(p => !filters.network || networkLabel(p, profile) === 'Sample plan match')
-    .filter(p => distance(p, profile) <= Number(filters.distance))
-    .filter(p => filters.availability === 'any' || p.days <= Number(filters.availability))
+    .filter(p => !networkOnly || networkLabel(p, profile) === 'Sample plan match')
+    .filter(p => Number.isFinite(distanceLimit) ? distance(p, profile) <= distanceLimit : true)
+    .filter(p => Number.isFinite(availabilityLimit) ? p.days <= availabilityLimit : true)
     .sort((a, b) => filters.sort === 'distance' ? distance(a, profile) - distance(b, profile) : filters.sort === 'availability' ? a.days - b.days : Number(b.plans.includes(profile.insurance)) - Number(a.plans.includes(profile.insurance)) || a.days - b.days);
 }
 export function validProfile(p) { if (!p) return false; const conds = Array.isArray(p.conditions) ? p.conditions : (p.condition ? [p.condition] : []); return conds.length > 0 && conds.every(c => conditions.includes(c)) && insurers.includes(p.insurance) && Object.hasOwn(locations, p.location); }

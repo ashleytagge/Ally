@@ -1,5 +1,6 @@
 import { conditions, insurers, locations, providers, resources, demoProfile } from './data.js';
 import { askAlly } from './agent1.js';
+import { findAppointmentSlots } from './agent2.js';
 import { initialFilters, findProviders, networkLabel, distance, readState } from './model.js';
 
 const app = document.querySelector('#app');
@@ -14,6 +15,7 @@ let resourceTopic = 'all';
 const aiCache = {};
 function getAIState(cond) { const k = cond || focusedCondition(); return aiCache[k] || { results: null, loading: false, error: null }; }
 let agentProviderCache = {};
+const bookingCache = {};
 let activeCondition = null;
 function focusedCondition() {
   if (!session.profile) return '';
@@ -71,6 +73,7 @@ async function fetchAIForCondition(cond) {
 function switchCondition(cond) {
   activeCondition = cond;
   agentProviderCache = {};
+  for (const k in bookingCache) delete bookingCache[k];
   render();
   // Fetch only if not already cached or in-flight
   if (!aiCache[cond]?.results && !aiCache[cond]?.loading) fetchAIForCondition(cond);
@@ -277,6 +280,23 @@ function agentProviderCard(p, compact = false) {
 function showAgentProvider(id) {
   const p = agentProviderCache[id];
   if (!p) return;
+  const booking = bookingCache[id];
+  let slotsMarkup = '';
+  if (booking?.loading) {
+    slotsMarkup = '<div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Agent 2 is checking publicly listed openings…</p></div>';
+  } else if (booking?.error) {
+    slotsMarkup = `<div class="why-box"><strong>Could not check availability</strong><p>${escape(booking.error)}</p></div>`;
+  } else if (booking?.results) {
+    const slots = booking.results.slots;
+    slotsMarkup = slots.length
+      ? `<div class="why-box"><strong>Publicly listed openings</strong><div class="booking-slots">${slots.map((slot, index) => {
+          const date = slot.date ? new Date(`${slot.date}T12:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'Date unavailable';
+          const mode = slot.mode === 'telehealth' ? 'Telehealth' : 'In person';
+          const url = slot.bookingUrl && /^https?:\/\//i.test(slot.bookingUrl) ? slot.bookingUrl : null;
+          return `<div class="booking-slot"><div><strong>${escape(date)}</strong><span>${escape(slot.time || 'Time unavailable')} · ${escape(slot.timezone || '')} · ${mode}</span>${slot.note ? `<small>${escape(slot.note)}</small>` : ''}</div>${url ? `<a class="secondary" href="${escape(url)}" target="_blank" rel="noopener noreferrer">Open self-booking ${icon('external')}</a>` : '<span class="small muted">No direct link</span>'}</div>`;
+        }).join('')}</div></div>`
+      : `<div class="why-box"><strong>No verified openings found</strong><p>Agent 2 could not verify a self-bookable opening. Call the provider before scheduling.</p></div>`;
+  }
   showDialog(`<span class="eyebrow">HEALTHCARE PROVIDER</span>
     <div class="detail-heading" style="margin-bottom:1rem">
       <h2 style="margin:0">${escape(p.name)}</h2>
@@ -293,9 +313,11 @@ function showAgentProvider(id) {
     ${p.providers && p.providers.length ? `<div class="why-box"><strong>Providers at this location</strong><ul style="margin:.5rem 0 0;padding-left:1.25rem">${p.providers.map(pr => `<li>${escape(pr.name)} · ${escape(pr.role)}</li>`).join('')}</ul></div>` : ''}
     ${p.bookingNote ? `<p class="small muted" style="margin-top:1rem">${escape(p.bookingNote)}</p>` : ''}
     <div class="detail-actions">
+      <button class="primary" data-find-slots="${escape(p.id)}">Find open appointments ${icon('arrow')}</button>
       ${p.phone ? `<a class="primary" href="tel:${escape(p.phone)}">Call to book ${icon('arrow')}</a>` : ''}
     </div>
-    <p class="small muted" style="margin-top:1rem">AI-generated results. Always call ahead to verify insurance coverage, provider availability, and referral requirements before booking.</p>`);
+    ${slotsMarkup}
+    <p class="small muted" style="margin-top:1rem">AI-generated results. Agent 2 may return only publicly listed openings. Always verify insurance, availability, referral requirements, and the booking link before scheduling.</p>`);
 }
 
 // Delegated events keep repeated cards and dialogs consistent without a UI framework.
@@ -308,6 +330,25 @@ document.addEventListener('click', event => {
   }
   if (target.dataset.provider) showProvider(target.dataset.provider);
   if (target.dataset.agentProvider) showAgentProvider(target.dataset.agentProvider);
+  if (target.dataset.findSlots) {
+    const id = target.dataset.findSlots;
+    const p = agentProviderCache[id];
+    if (!p) return;
+    bookingCache[id] = { loading: true, error: null, results: null };
+    showAgentProvider(id);
+    findAppointmentSlots({
+      provider: p,
+      location: locations[session.profile.location]?.label || session.profile.location,
+      condition: focusedCondition(),
+    }).then(results => {
+      bookingCache[id] = { loading: false, error: null, results };
+      if (dialog.open) showAgentProvider(id);
+    }).catch(err => {
+      bookingCache[id] = { loading: false, error: err.message, results: null };
+      if (dialog.open) showAgentProvider(id);
+      console.error('Agent 2:', err);
+    });
+  }
   if (target.dataset.conditionSwitch) { switchCondition(target.dataset.conditionSwitch); }
   if (target.dataset.book) showBooking(target.dataset.book);
   if (target.dataset.chipTarget) { const inp = document.getElementById(target.dataset.chipTarget); if (inp) { inp.value = target.dataset.chipValue; inp.focus(); } }
@@ -357,7 +398,7 @@ document.addEventListener('input', event => {
   if (event.target.id === 'resource-search') { resourceQuery = event.target.value; document.querySelector('#resource-results').innerHTML = resourceResults(); }
 });
 document.addEventListener('submit', event => {
-  if (event.target.id === 'profile-form') { event.preventDefault(); const fd = new FormData(event.target); const profileData = Object.fromEntries(fd); profileData.conditions = fd.getAll('conditions'); delete profileData.condition; if (!profileData.conditions.length) { toast('Please select at least one diagnosis.'); return; } session.profile = profileData; activeCondition = null; for (const k in aiCache) delete aiCache[k]; agentProviderCache = {}; comparison = []; persist(); dialog.close(); navigate('dashboard'); }
+  if (event.target.id === 'profile-form') { event.preventDefault(); const fd = new FormData(event.target); const profileData = Object.fromEntries(fd); profileData.conditions = fd.getAll('conditions'); delete profileData.condition; if (!profileData.conditions.length) { toast('Please select at least one diagnosis.'); return; } session.profile = profileData; activeCondition = null; for (const k in aiCache) delete aiCache[k]; for (const k in bookingCache) delete bookingCache[k]; agentProviderCache = {}; comparison = []; persist(); dialog.close(); navigate('dashboard'); }
   if (event.target.id === 'booking-form') {
     event.preventDefault(); const id = event.target.dataset.id; const values = Object.fromEntries(new FormData(event.target));
     if (!session.appointments.some(a => a.id === id && a.date === values.date && a.time === values.time)) session.appointments.push({ id, ...values });
