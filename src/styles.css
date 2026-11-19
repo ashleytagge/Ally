@@ -86,6 +86,11 @@ dialog{color:#2f4236;position:fixed;border:1px solid #d7dfd0;border-radius:15px;
 .aid-option .text-button svg{width:11px;height:11px}
 .error-state{font-size:12px;color:var(--muted);padding:12px 0}
 .no-profile-prompt{display:flex;flex-direction:column;align-items:center;gap:16px;padding:60px 24px;text-align:center;color:var(--muted)}
+.find-care-trigger{display:flex;flex-direction:column;align-items:center;gap:16px;padding:60px 24px;text-align:center}
+.find-care-trigger svg{width:36px;height:36px;stroke:var(--line)}
+.find-care-ready{font-size:13px;color:var(--muted);max-width:360px;line-height:1.6}
+.find-care-trigger .primary{gap:7px}
+.find-care-trigger .primary svg{width:14px;height:14px}
 .no-profile-prompt svg{width:36px;height:36px;stroke:var(--line)}
 .no-profile-prompt p{font-size:13px;max-width:320px;line-height:1.6}
 /* Phase 2 – dashboard editing */

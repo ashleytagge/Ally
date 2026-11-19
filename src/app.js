@@ -80,8 +80,6 @@ function switchCondition(cond) {
   agentProviderCache = {};
   for (const k in bookingCache) delete bookingCache[k];
   render();
-  // Fetch only if not already cached or in-flight
-  if (!aiCache[cond]?.results && !aiCache[cond]?.loading) fetchAIForCondition(cond);
 }
 function showDialog(content) { dialog.innerHTML = `<button class="icon-button dialog-close" data-action="close" aria-label="Close dialog">${icon('close')}</button>${content}`; dialog.showModal(); }
 function render() {
@@ -164,8 +162,14 @@ function providerResults() {
     return `<div class="results-toolbar"><p role="status"><strong>${list.length}</strong> provider${list.length === 1 ? '' : 's'} found <span>· ${escape(locations[session.profile.location]?.label || session.profile.location)}</span></p></div>${list.length ? `<div class="provider-grid">${list.map(p => agentProviderCard(p)).join('')}</div>` : `<div class="empty">${icon('search')}<h2>No providers found.</h2><p>Try adjusting your preferences.</p></div>`}<p class="small muted" style="margin-top:1.5rem;text-align:center">Results from Ally’s AI · Always call providers to verify insurance, availability, and details before booking.</p>`;
   }
   if (!session.profile) return '';
-  const list = findProviders({ ...session.profile, condition: focusedCondition() }, filters, view === 'saved' ? session.saved : null);
-  return `<div class="results-toolbar"><p role="status"><strong>${list.length}</strong> sample provider${list.length === 1 ? '' : 's'} <span>· ${locations[session.profile.location].label}</span></p><label>Sort by <select data-filter="sort">${[['relevance', 'Plan match first'], ['distance', 'Closest first'], ['availability', 'Soonest sample opening']].map(([v, t]) => `<option value="${v}" ${filters.sort === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div>${list.length ? `<div class="provider-grid">${list.map(p => providerCard(p)).join('')}</div>` : `<div class="empty">${icon(view === 'saved' ? 'bookmark' : 'search')}<h2>${view === 'saved' && !session.saved.length ? 'Your shortlist starts here.' : 'No sample options fit these filters.'}</h2><p>${view === 'saved' && !session.saved.length ? 'Save a provider from Find care to keep them close.' : 'Try a broader search or reset your filters. This demo has a small fictional directory.'}</p><button class="secondary" data-action="${view === 'saved' && !session.saved.length ? 'find' : 'reset-filters'}">${view === 'saved' && !session.saved.length ? 'Explore sample providers' : 'Reset filters'}</button></div>`}`;
+  if (view === 'saved') {
+    const list = findProviders({ ...session.profile, condition: focusedCondition() }, filters, session.saved);
+    return `<div class="results-toolbar"><p role="status"><strong>${list.length}</strong> saved provider${list.length === 1 ? '' : 's'}</p></div>${list.length ? `<div class="provider-grid">${list.map(p => providerCard(p)).join('')}</div>` : `<div class="empty">${icon('bookmark')}<h2>Your shortlist starts here.</h2><p>Save a provider from Find care to keep them close.</p><button class="secondary" data-action="find">Explore providers</button></div>`}`;
+  }
+  if (aiS.error) {
+    return `<div class="find-care-trigger"><p class="find-care-ready">Something went wrong finding providers. <button class="text-button" data-action="run-find-care">Try again</button></p></div>`;
+  }
+  return `<div class="find-care-trigger">${icon('search')}<p class="find-care-ready">Ally will search for providers in your area who match your diagnosis and insurance plan.</p><button class="primary" data-action="run-find-care">${icon('search')} Find care options</button></div>`;
 }
 function resourceCard(r) { return `<a class="resource-card" href="${r.url}" target="_blank" rel="noopener noreferrer"><span class="resource-icon">${icon('book')}</span><div><span class="eyebrow">${r.source}</span><h3>${r.title}</h3><p>${r.text}</p><small>Read at the source · opens a new tab</small></div>${icon('external')}</a>`; }
 function resourcePage() {
@@ -421,6 +425,7 @@ document.addEventListener('click', event => {
     case 'compare': showComparison(); break;
     case 'clear-compare': comparison = []; render(); break;
     case 'clear-session': session = { profile: null, saved: [], appointments: [], tasks: [], myProviders: [], symptoms: [], treatments: [] }; comparison = []; askDoctorState = 'idle'; askDoctorResults = null; askDoctorError = null; persist(); dialog.close(); navigate('welcome'); break;
+    case 'run-find-care': fetchAIForCondition(focusedCondition()); break;
     case 'run-ask-doctor': askDoctorState = 'loading'; askDoctorResults = null; askDoctorError = null; render(); runAskDoctor(); break;
     case 'add-provider': showAddProviderDialog(); break;
     case 'add-symptom': showAddSymptomDialog(); break;
@@ -445,7 +450,7 @@ document.addEventListener('input', event => {
   if (event.target.id === 'resource-search') { resourceQuery = event.target.value; document.querySelector('#resource-results').innerHTML = resourceResults(); }
 });
 document.addEventListener('submit', event => {
-  if (event.target.id === 'profile-form') { event.preventDefault(); const fd = new FormData(event.target); const profileData = Object.fromEntries(fd); profileData.conditions = fd.getAll('conditions'); delete profileData.condition; if (!profileData.conditions.length) { toast('Please select at least one diagnosis.'); return; } session.profile = profileData; activeCondition = null; for (const k in aiCache) delete aiCache[k]; for (const k in bookingCache) delete bookingCache[k]; agentProviderCache = {}; comparison = []; persist(); dialog.close(); navigate('dashboard'); const newConds = profileData.conditions.length ? profileData.conditions : [profileData.condition].filter(Boolean); newConds.forEach(c => fetchAIForCondition(c)); }
+  if (event.target.id === 'profile-form') { event.preventDefault(); const fd = new FormData(event.target); const profileData = Object.fromEntries(fd); profileData.conditions = fd.getAll('conditions'); delete profileData.condition; if (!profileData.conditions.length) { toast('Please select at least one diagnosis.'); return; } session.profile = profileData; activeCondition = null; for (const k in aiCache) delete aiCache[k]; for (const k in bookingCache) delete bookingCache[k]; agentProviderCache = {}; comparison = []; persist(); dialog.close(); navigate('dashboard'); }
   if (event.target.id === 'booking-form') {
     event.preventDefault(); const id = event.target.dataset.id; const values = Object.fromEntries(new FormData(event.target));
     if (!session.appointments.some(a => a.id === id && a.date === values.date && a.time === values.time)) session.appointments.push({ id, ...values });
@@ -475,7 +480,3 @@ document.addEventListener('submit', event => {
 });
 dialog.addEventListener('click', e => { if (e.target === dialog && (e.clientX < dialog.getBoundingClientRect().left || e.clientX > dialog.getBoundingClientRect().right || e.clientY < dialog.getBoundingClientRect().top || e.clientY > dialog.getBoundingClientRect().bottom)) dialog.close(); });
 render();
-if (session.profile) {
-  const initConds = Array.isArray(session.profile.conditions) ? session.profile.conditions : [session.profile.condition].filter(Boolean);
-  initConds.forEach(c => fetchAIForCondition(c));
-}
