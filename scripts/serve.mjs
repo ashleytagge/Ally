@@ -248,7 +248,10 @@ Rules:
 - Prioritize treatments marked as 'not-working' or that have side effects
 - Flag symptoms with severity 3 (Significant) as high priority
 - Include 4-8 suggestions total
-- Keep questions conversational and patient-friendly, not overly clinical
+- Keep questions SHORT — under 12 words ideally, 15 max. Lead with the core ask, not setup.
+- Bad: "My levothyroxine seems to be helping but I still have fatigue — should we adjust my T3?" 
+- Good: "Should we check my T3 levels for lingering fatigue?"
+- Write like a patient talking to their doctor, not reading from a form
 - Never output anything outside the JSON`,
         userMessage,
         process.env.AGENT3_API_KEY || process.env.ANTHROPIC_API_KEY,

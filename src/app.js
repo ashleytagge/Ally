@@ -128,7 +128,7 @@ function dashboard() {
 
   const askDoctorSection = `<section class="dash-ask-doctor" id="dash-ask">
     <div class="dash-ask-head"><span class="eyebrow">PERSONALIZED SUGGESTIONS</span><h2>Ask your doctor about</h2></div>
-    ${askDoctorState === 'loading' ? `<div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is preparing suggestions based on your care…</p></div>` : askDoctorState === 'done' && askDoctorResults ? `<div class="ask-results"><p class="ask-summary">${escape(askDoctorResults.summary || '')}</p><div class="ask-list">${(askDoctorResults.suggestions || []).map(s => `<div class="ask-item"><span class="ask-category">${escape(s.category)}</span><p class="ask-question">${escape(s.question)}</p>${s.context ? `<p class="ask-context">${escape(s.context)}</p>` : ''}</div>`).join('')}</div><button class="text-button refresh-btn" data-action="run-ask-doctor">${icon('activity')} Refresh suggestions</button></div>` : askDoctorState === 'error' ? `<div class="ask-error"><p>Couldn't generate suggestions right now. <button class="text-button" data-action="run-ask-doctor">Try again</button></p></div>` : `<div class="dash-ask-trigger"><p class="dash-ask-ready">Based on your diagnosis${hasData ? ', symptoms, and treatments' : ''}, Ally can suggest questions and topics to bring to your next appointment.</p><button class="primary" data-action="run-ask-doctor">${icon('activity')} Generate suggestions</button></div>`}
+    ${askDoctorState === 'loading' ? `<div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is preparing suggestions based on your care…</p></div>` : askDoctorState === 'done' && askDoctorResults ? renderAskGroups(askDoctorResults) : askDoctorState === 'error' ? `<div class="ask-error"><p>Couldn't generate suggestions right now. <button class="text-button" data-action="run-ask-doctor">Try again</button></p></div>` : `<div class="dash-ask-trigger"><p class="dash-ask-ready">Based on your diagnosis${hasData ? ', symptoms, and treatments' : ''}, Ally can suggest questions and topics to bring to your next appointment.</p><button class="primary" data-action="run-ask-doctor">${icon('activity')} Generate suggestions</button></div>`}
   </section>`;
 
   return `${prefStrip}<div class="dash-grid">${providersCard}${symptomsCard}</div>${treatmentsCard}${askDoctorSection}`;
@@ -199,6 +199,26 @@ function appointments() {
 function about() { showDialog(`<span class="eyebrow">ABOUT THIS PROTOTYPE</span><h2>Support, with clear boundaries.</h2><p>Ally is an initial healthcare navigation prototype for women with new autoimmune diagnoses, based on the Ally product pitch.</p><ul class="about-list"><li><strong>Fictional care directory.</strong> Names, plans, distances, phone numbers, and appointment openings are sample data. They are not verified.</li><li><strong>A scripted advocate.</strong> Ally uses simple matching rules. There is no live AI, diagnosis, or treatment advice.</li><li><strong>Session-only preferences.</strong> Your selections, saves, checklist, and demo appointments stay in this browser session. No analytics or account.</li><li><strong>Real educational links.</strong> Resources open NIH websites. Those sites have their own privacy policies.</li><li><strong>Research status.</strong> No prior user study was provided. Design choices are hypotheses from the product brief, not validated findings.</li></ul><button class="secondary" data-action="clear-session">Clear session & return to welcome</button>`); }
 
 // --- Agent 3 — Ask Your Doctor About ---
+function renderAskGroups(results) {
+  const suggestions = results.suggestions || [];
+  const summary = results.summary || '';
+  const order = ['Symptoms', 'Treatments', 'Monitoring', 'Next Steps'];
+  const grouped = {};
+  suggestions.forEach(s => {
+    const cat = s.category || 'Other';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(s);
+  });
+  const cats = order.filter(c => grouped[c]).concat(Object.keys(grouped).filter(c => !order.includes(c)));
+  const groups = cats.map(cat => {
+    const items = grouped[cat].map(s =>
+      `<div class="ask-item"><p class="ask-question">${escape(s.question)}</p>${s.context ? `<p class="ask-context">${escape(s.context)}</p>` : ''}</div>`
+    ).join('');
+    return `<div class="ask-group"><h4 class="ask-group-header">${escape(cat)}</h4>${items}</div>`;
+  }).join('');
+  return `<div class="ask-results">${summary ? `<p class="ask-summary">${escape(summary)}</p>` : ''}<div class="ask-list">${groups}</div><button class="text-button refresh-btn" data-action="run-ask-doctor">${icon('activity')} Refresh suggestions</button></div>`;
+}
+
 async function runAskDoctor() {
   try {
     const result = await askDoctor({ symptoms: session.symptoms || [], treatments: session.treatments || [], profile: session.profile });

@@ -63,9 +63,10 @@ dialog{color:#2f4236;position:fixed;border:1px solid #d7dfd0;border-radius:15px;
 /* Agent 3 results */
 .ask-results{display:flex;flex-direction:column;gap:14px}
 .ask-summary{font-size:12px;color:#5a7250;font-style:italic;line-height:1.6}
-.ask-list{display:flex;flex-direction:column;gap:10px}
 .ask-item{background:#fff;border:1px solid #d9e4d0;border-radius:9px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
-.ask-category{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#7a9b6e}
+.ask-group{display:flex;flex-direction:column;gap:8px}
+.ask-group-header{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#7a9b6e;margin:0;padding:4px 0 2px}
+.ask-list{display:flex;flex-direction:column;gap:18px}
 .ask-question{font-size:13px;color:#2e4435;font-weight:500;line-height:1.5}
 .ask-context{font-size:11px;color:var(--muted);line-height:1.6}
 .refresh-btn{font-size:10px;align-self:flex-start;gap:5px;margin-top:4px}
