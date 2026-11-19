@@ -213,6 +213,107 @@ http.createServer(async (req, res) => {
     return;
   }
 
+  // POST /Ally/api/agent3 — Ask Your Doctor About
+  if (req.method === 'POST' && pathname === '/Ally/api/agent3') {
+    try {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const { symptoms, treatments, profile } = JSON.parse(Buffer.concat(chunks).toString());
+
+      const symLines = (symptoms || []).map(s => `- ${s.name} (${s.severity === 3 ? 'Significant' : s.severity === 2 ? 'Moderate' : 'Mild'})`).join('\n');
+      const treatLines = (treatments || []).map(t => `- ${t.name} (${t.type || 'Medication'}) — ${t.status === 'working' ? 'Working well' : t.status === 'partial' ? 'Partially working' : t.status === 'not-working' ? 'Not working' : 'Too early to tell'}${t.sideEffects ? ', side effects noted' : ''}`).join('\n');
+      const condLine = Array.isArray(profile?.conditions) ? profile.conditions.join(', ') : (profile?.condition || 'autoimmune condition');
+
+      const userMessage = `Patient profile:\n- Diagnosis: ${condLine}\n\nSymptoms:\n${symLines || 'None logged'}\n\nTreatments:\n${treatLines || 'None logged'}`;
+
+      const result = await callAnthropic(
+        `You are Ally's Appointment Prep agent — a specialist in helping patients with autoimmune conditions prepare for doctor's appointments.
+
+Given a patient's logged symptoms (with severity) and treatments (with effectiveness ratings and side effect flags), generate a focused, personalized list of questions and topics they should bring up at their next appointment.
+
+ALWAYS respond with valid JSON only — no markdown, no explanation, no extra text — in this exact structure:
+{
+  "suggestions": [
+    {
+      "category": "Symptoms | Treatments | Next Steps | Monitoring",
+      "question": "The specific question or topic to raise with their doctor",
+      "context": "One sentence explaining why this matters based on their data"
+    }
+  ],
+  "summary": "One sentence framing what this appointment should focus on"
+}
+
+Rules:
+- Be specific to the actual symptoms and treatments provided — never generic
+- Prioritize treatments marked as 'not-working' or that have side effects
+- Flag symptoms with severity 3 (Significant) as high priority
+- Include 4-8 suggestions total
+- Keep questions conversational and patient-friendly, not overly clinical
+- Never output anything outside the JSON`,
+        userMessage,
+        process.env.AGENT3_API_KEY || process.env.ANTHROPIC_API_KEY,
+      );
+      result.suggestions = Array.isArray(result.suggestions) ? result.suggestions : [];
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(result));
+    } catch (err) {
+      console.error('Agent 3 error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // POST /Ally/api/agent-coverage — Financial Aid per Treatment
+  if (req.method === 'POST' && pathname === '/Ally/api/agent-coverage') {
+    try {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const { treatmentName, profile } = JSON.parse(Buffer.concat(chunks).toString());
+
+      const condLine = Array.isArray(profile?.conditions) ? profile.conditions.join(', ') : (profile?.condition || 'autoimmune condition');
+      const userMessage = `Find financial assistance options for: ${treatmentName}\nPatient diagnosis: ${condLine}\nInsurance: ${profile?.insurance || 'unknown'}`;
+
+      const result = await callAnthropic(
+        `You are Ally's Coverage Agent — a specialist in finding financial assistance for patients with autoimmune conditions in the United States.
+
+Given a specific treatment or medication, find real financial assistance options including manufacturer patient assistance programs, copay cards, nonprofit grants, and insurance coverage tips.
+
+ALWAYS respond with valid JSON only — no markdown, no explanation, no extra text — in this exact structure:
+{
+  "options": [
+    {
+      "name": "Program or resource name",
+      "type": "Manufacturer PAP | Copay Card | Nonprofit Grant | Insurance Tip | General Resource",
+      "description": "What it offers and how it helps",
+      "eligibility": "Brief eligibility criteria",
+      "url": "Real website URL or null",
+      "note": "Important caveat or null"
+    }
+  ],
+  "summary": "One sentence overview of what financial help is available for this treatment"
+}
+
+Rules:
+- Include 3-6 options
+- Only include programs that genuinely exist for this medication or condition
+- If the treatment is a generic medication with no PAP, say so and suggest alternatives
+- Be honest about eligibility — don't suggest programs the patient likely won't qualify for
+- Never output anything outside the JSON`,
+        userMessage,
+        process.env.COVERAGE_API_KEY || process.env.ANTHROPIC_API_KEY,
+      );
+      result.options = Array.isArray(result.options) ? result.options : [];
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(result));
+    } catch (err) {
+      console.error('Coverage agent error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
   // Static file serving
   if (pathname === '/Ally') { res.writeHead(302, { Location: '/Ally/' }); return res.end(); }
   pathname = pathname.replace(/^\/Ally\//, '/');

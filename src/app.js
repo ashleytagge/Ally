@@ -1,6 +1,8 @@
 import { conditions, insurers, locations, providers, resources, demoProfile } from './data.js';
 import { askAlly } from './agent1.js';
 import { findAppointmentSlots } from './agent2.js';
+import { askDoctor } from './agent3.js';
+import { fetchCoverage } from './agentCoverage.js';
 import { initialFilters, findProviders, networkLabel, distance, readState } from './model.js';
 
 const app = document.querySelector('#app');
@@ -13,7 +15,9 @@ let comparison = [];
 let resourceQuery = '';
 let resourceTopic = 'all';
 const aiCache = {};
-let askDoctorState = 'idle'; // 'idle' | 'loading' | 'done'
+let askDoctorState = 'idle'; // 'idle' | 'loading' | 'done' | 'error'
+let askDoctorResults = null;
+let askDoctorError = null;
 function getAIState(cond) { const k = cond || focusedCondition(); return aiCache[k] || { results: null, loading: false, error: null }; }
 let agentProviderCache = {};
 const bookingCache = {};
@@ -126,7 +130,7 @@ function dashboard() {
 
   const askDoctorSection = `<section class="dash-ask-doctor" id="dash-ask">
     <div class="dash-ask-head"><span class="eyebrow">PERSONALIZED SUGGESTIONS</span><h2>Ask your doctor about</h2></div>
-    ${!hasData ? `<p class="dash-ask-empty">Add your symptoms and treatments above and Ally will suggest questions and options to bring up at your next appointment — based on what's working and what isn't.</p>` : askDoctorState === 'loading' ? `<div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is preparing suggestions based on your care…</p></div>` : `<div class="dash-ask-trigger"><p class="dash-ask-ready">Your symptoms and treatments are ready. Ally can now suggest questions and topics to bring up at your next appointment.</p><button class="primary" data-action="run-ask-doctor">${icon('activity')} Generate suggestions</button></div>`}
+    ${!hasData ? `<p class="dash-ask-empty">Add your symptoms and treatments above and Ally will suggest questions and options to bring up at your next appointment — based on what's working and what isn't.</p>` : askDoctorState === 'loading' ? `<div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is preparing suggestions based on your care…</p></div>` : askDoctorState === 'done' && askDoctorResults ? `<div class="ask-results"><p class="ask-summary">${escape(askDoctorResults.summary || '')}</p><div class="ask-list">${(askDoctorResults.suggestions || []).map(s => `<div class="ask-item"><span class="ask-category">${escape(s.category)}</span><p class="ask-question">${escape(s.question)}</p>${s.context ? `<p class="ask-context">${escape(s.context)}</p>` : ''}</div>`).join('')}</div><button class="text-button refresh-btn" data-action="run-ask-doctor">${icon('activity')} Refresh suggestions</button></div>` : askDoctorState === 'error' ? `<div class="ask-error"><p>Couldn't generate suggestions right now. <button class="text-button" data-action="run-ask-doctor">Try again</button></p></div>` : `<div class="dash-ask-trigger"><p class="dash-ask-ready">Your symptoms and treatments are ready. Ally can now suggest questions and topics to bring up at your next appointment.</p><button class="primary" data-action="run-ask-doctor">${icon('activity')} Generate suggestions</button></div>`}
   </section>`;
 
   return `${prefStrip}<div class="dash-grid">${providersCard}${symptomsCard}</div>${treatmentsCard}${askDoctorSection}`;
@@ -186,6 +190,20 @@ function appointments() {
 }
 function about() { showDialog(`<span class="eyebrow">ABOUT THIS PROTOTYPE</span><h2>Support, with clear boundaries.</h2><p>Ally is an initial healthcare navigation prototype for women with new autoimmune diagnoses, based on the Ally product pitch.</p><ul class="about-list"><li><strong>Fictional care directory.</strong> Names, plans, distances, phone numbers, and appointment openings are sample data. They are not verified.</li><li><strong>A scripted advocate.</strong> Ally uses simple matching rules. There is no live AI, diagnosis, or treatment advice.</li><li><strong>Session-only preferences.</strong> Your selections, saves, checklist, and demo appointments stay in this browser session. No analytics or account.</li><li><strong>Real educational links.</strong> Resources open NIH websites. Those sites have their own privacy policies.</li><li><strong>Research status.</strong> No prior user study was provided. Design choices are hypotheses from the product brief, not validated findings.</li></ul><button class="secondary" data-action="clear-session">Clear session & return to welcome</button>`); }
 
+// --- Agent 3 — Ask Your Doctor About ---
+async function runAskDoctor() {
+  try {
+    const result = await askDoctor({ symptoms: session.symptoms || [], treatments: session.treatments || [], profile: session.profile });
+    askDoctorResults = result;
+    askDoctorState = 'done';
+  } catch (err) {
+    console.error('Agent 3:', err);
+    askDoctorError = err.message;
+    askDoctorState = 'error';
+  }
+  render();
+}
+
 // --- Phase 2 dashboard dialog functions ---
 function showAddProviderDialog(editId = null) {
   const existing = editId ? (session.myProviders || []).find(p => p.id === editId) : null;
@@ -241,11 +259,34 @@ function showAddTreatmentDialog(editId = null) {
       <button class="primary full" type="submit">${existing ? 'Save changes' : 'Add treatment'}</button>
     </form>`);
 }
-function showFindAidDialog(treatmentName) {
+async function showFindAidDialog(treatmentName) {
   showDialog(`<span class="eyebrow">COVERAGE OPTIONS</span>
     <h2>Financial aid for ${escape(treatmentName || 'this treatment')}</h2>
-    <div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is searching for coverage options and financial assistance programs…</p></div>
-    <p class="small muted" style="margin-top:16px">This feature is coming soon. Ally will help you find manufacturer discounts, patient assistance programs, and coverage options for your treatments.</p>`);
+    <div class="aid-content"><div class="ai-loading" role="status" aria-live="polite"><div class="loading-pulse"></div><p>Ally is searching for coverage options and financial assistance programs…</p></div></div>`);
+  try {
+    const result = await fetchCoverage({ treatmentName, profile: session.profile });
+    if (!dialog.open) return;
+    const content = dialog.querySelector('.aid-content');
+    if (!content) return;
+    content.innerHTML = `
+      <p class="aid-summary">${escape(result.summary || '')}</p>
+      <div class="aid-options">${(result.options || []).map(o => `
+        <div class="aid-option">
+          <div class="aid-option-head">
+            <strong>${escape(o.name)}</strong>
+            <span class="aid-type">${escape(o.type)}</span>
+          </div>
+          <p class="aid-desc">${escape(o.description)}</p>
+          ${o.eligibility ? `<p class="aid-elig"><strong>Eligibility:</strong> ${escape(o.eligibility)}</p>` : ''}
+          ${o.note ? `<p class="aid-note">${escape(o.note)}</p>` : ''}
+          ${o.url ? `<a class="text-button" href="${escape(o.url)}" target="_blank" rel="noopener">Visit site ${icon('external')}</a>` : ''}
+        </div>`).join('')}
+      </div>`;
+  } catch (err) {
+    if (!dialog.open) return;
+    const content = dialog.querySelector('.aid-content');
+    if (content) content.innerHTML = `<p class="error-state">Could not load coverage options. Please try again later.</p>`;
+  }
 }
 
 // --- Agent 1 provider rendering ---
@@ -375,8 +416,8 @@ document.addEventListener('click', event => {
     case 'reset-filters': filters = initialFilters(); render(); break;
     case 'compare': showComparison(); break;
     case 'clear-compare': comparison = []; render(); break;
-    case 'clear-session': session = { profile: null, saved: [], appointments: [], tasks: [], myProviders: [], symptoms: [], treatments: [] }; comparison = []; askDoctorState = 'idle'; persist(); dialog.close(); navigate('welcome'); break;
-    case 'run-ask-doctor': askDoctorState = 'loading'; render(); break;
+    case 'clear-session': session = { profile: null, saved: [], appointments: [], tasks: [], myProviders: [], symptoms: [], treatments: [] }; comparison = []; askDoctorState = 'idle'; askDoctorResults = null; askDoctorError = null; persist(); dialog.close(); navigate('welcome'); break;
+    case 'run-ask-doctor': askDoctorState = 'loading'; askDoctorResults = null; askDoctorError = null; render(); runAskDoctor(); break;
     case 'add-provider': showAddProviderDialog(); break;
     case 'add-symptom': showAddSymptomDialog(); break;
     case 'add-treatment': showAddTreatmentDialog(); break;
