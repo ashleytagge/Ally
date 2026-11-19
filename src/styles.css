@@ -95,6 +95,7 @@ dialog{color:#2f4236;position:fixed;border:1px solid #d7dfd0;border-radius:15px;
 .no-profile-prompt p{font-size:13px;max-width:320px;line-height:1.6}
 /* Phase 2 – dashboard editing */
 .dash-item-actions{display:flex;align-items:center;gap:4px}
+.prov-office{font-size:10px;color:var(--muted);font-style:italic}
 .dash-sym-right{display:flex;align-items:center;gap:6px}
 .dash-treat-actions{display:flex;align-items:center;gap:2px;margin-left:auto}
 .dash-treatment-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}

@@ -113,7 +113,7 @@ function dashboard() {
   const providersCard = `<section class="dash-card" id="dash-providers">
     <div class="dash-card-head"><h2>My Providers</h2><button class="text-button" data-action="add-provider">${icon('plus')} Add provider</button></div>
     <div class="dash-insurance"><span class="eyebrow">INSURANCE</span><strong>${escape(p.insurance)}</strong></div>
-    ${myProvs.length ? myProvs.map(pv => `<div class="dash-provider-item"><div class="dash-provider-info"><strong>${escape(pv.name)}</strong><span>${escape(pv.specialty)}${pv.inNetwork ? ' · <span class="in-network">In network</span>' : ''}</span></div><div class="dash-item-actions"><span class="dash-prov-tag">${pv.isCurrent ? 'Current' : 'Past'}</span><button class="icon-button" data-edit-provider="${escape(pv.id)}" aria-label="Edit ${escape(pv.name)}">${icon('edit')}</button><button class="icon-button" data-remove-provider="${escape(pv.id)}" aria-label="Remove ${escape(pv.name)}">${icon('close')}</button></div></div>`).join('') : `<div class="dash-empty">${icon('users')}<p>Add the doctors and specialists you're seeing or have seen.</p><button class="text-button" data-view="providers">Find care ${icon('arrow')}</button></div>`}
+    ${myProvs.length ? myProvs.map(pv => `<div class="dash-provider-item"><div class="dash-provider-info"><strong>${escape(pv.name)}</strong>${pv.office ? `<span class="prov-office">${escape(pv.office)}</span>` : ''}<span>${escape(pv.specialty)}${pv.inNetwork ? ' · <span class="in-network">In network</span>' : ''}</span></div><div class="dash-item-actions"><span class="dash-prov-tag">${pv.isCurrent ? 'Current' : 'Past'}</span><button class="icon-button" data-edit-provider="${escape(pv.id)}" aria-label="Edit ${escape(pv.name)}">${icon('edit')}</button><button class="icon-button" data-remove-provider="${escape(pv.id)}" aria-label="Remove ${escape(pv.name)}">${icon('close')}</button></div></div>`).join('') : `<div class="dash-empty">${icon('users')}<p>Add the doctors and specialists you're seeing or have seen.</p><button class="text-button" data-view="providers">Find care ${icon('arrow')}</button></div>`}
   </section>`;
 
   const symptomsCard = `<section class="dash-card" id="dash-symptoms">
@@ -220,7 +220,8 @@ function showAddProviderDialog(editId = null) {
     <h2>${existing ? 'Update provider' : 'Who\'s on your care team?'}</h2>
     <div class="quick-chips">${chips.map(c => `<button class="chip" type="button" data-chip-target="provider-specialty" data-chip-value="${escape(c)}">${escape(c)}</button>`).join('')}</div>
     <form id="add-provider-form" data-edit-id="${editId || ''}">
-      <label class="form-label">Provider name<input type="text" name="name" required placeholder="Dr. Name or Clinic" value="${existing ? escape(existing.name) : ''}" autocomplete="off"></label>
+      <label class="form-label">Provider name<input type="text" name="name" required placeholder="e.g. Dr. Linda Rawson, MD" value="${existing ? escape(existing.name) : ''}" autocomplete="off"></label>
+      <label class="form-label">Office or clinic name<input type="text" name="office" placeholder="e.g. Holladay Family Medicine" value="${existing ? escape(existing.office || '') : ''}" autocomplete="off"></label>
       <label class="form-label">Specialty<input type="text" name="specialty" id="provider-specialty" placeholder="e.g. Endocrinologist" value="${existing ? escape(existing.specialty) : ''}" autocomplete="off"></label>
       <fieldset class="radio-group"><legend>Status</legend>
         <label class="radio-label"><input type="radio" name="isCurrent" value="true" ${!existing || existing.isCurrent ? 'checked' : ''}> Current provider</label>
@@ -241,7 +242,7 @@ function showAddSymptomDialog(editId = null) {
       <label class="form-label">Symptom<input type="text" name="name" id="symptom-name" required placeholder="Describe the symptom" value="${existing ? escape(existing.name) : ''}" autocomplete="off"></label>
       <fieldset class="severity-fieldset"><legend>How significant is this?</legend>
         <div class="severity-options">
-          ${[{v:1,label:'Mild'},{v:2,label:'Moderate'},{v:3,label:'Significant'}].map(opt => `<label class="sev-opt${(!existing && opt.v===1)||(existing && existing.severity===opt.v)?' checked':''}"><input type="radio" name="severity" value="${opt.v}" ${(!existing && opt.v===1)||(existing && existing.severity===opt.v)?'checked':''}><span class="sev-dots">${[1,2,3].map(n=>`<span class="severity-dot${n<=opt.v?' filled':''}"></span>`).join('')}</span><span>${opt.label}</span></label>`).join('')}
+          ${[{v:1,label:'Mild'},{v:2,label:'Moderate'},{v:3,label:'Significant'}].map(opt => `<label class="sev-opt"><input type="radio" name="severity" value="${opt.v}" ${(!existing && opt.v===1)||(existing && existing.severity===opt.v)?'checked':''}><span class="sev-dots">${[1,2,3].map(n=>`<span class="severity-dot${n<=opt.v?' filled':''}"></span>`).join('')}</span><span>${opt.label}</span></label>`).join('')}
         </div>
       </fieldset>
       ${editId ? `<button class="text-button remove-link" type="button" data-remove-symptom="${editId}">Remove symptom</button>` : ''}
@@ -459,7 +460,7 @@ document.addEventListener('submit', event => {
   if (event.target.id === 'add-provider-form') {
     event.preventDefault();
     const fd = Object.fromEntries(new FormData(event.target));
-    const item = { id: event.target.dataset.editId || Date.now().toString(), name: fd.name.trim(), specialty: (fd.specialty || '').trim(), isCurrent: fd.isCurrent === 'true', inNetwork: 'inNetwork' in fd };
+    const item = { id: event.target.dataset.editId || Date.now().toString(), name: fd.name.trim(), office: (fd.office || '').trim(), specialty: (fd.specialty || '').trim(), isCurrent: fd.isCurrent === 'true', inNetwork: 'inNetwork' in fd };
     if (event.target.dataset.editId) { session.myProviders = session.myProviders.map(p => p.id === item.id ? item : p); } else { session.myProviders = [...session.myProviders, item]; }
     persist(); dialog.close(); navigate('dashboard');
   }
